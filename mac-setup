@@ -102,7 +102,6 @@ shell_install() {
 
 init_log() {
   echo "Initializing log..."
-  mkdir -p "${DOT_DIR}"
   rm -f "${HOME}/.mac-setup.log" 2>/dev/null
   touch "${HOME}/.mac-setup.log"
 }
