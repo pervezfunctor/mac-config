@@ -5,7 +5,7 @@
 Run the bootstrap script:
 
 ```sh
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/pervezfunctor/mac-config/main/mac-setup)"
+curl -fsSL https://raw.githubusercontent.com/pervezfunctor/mac-config/main/mac-setup | sh
 ```
 
 The bootstrap script clones the repo to `~/.mac-config`, installs homebrew and configures shell.
