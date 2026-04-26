@@ -126,12 +126,16 @@ def "main vscode config" [] {
 
   [
     "Catppuccin.catppuccin-vsc"
-    "ms-python.python"
+    "charliermarsh.ruff"
+    "llvm-vs-code-extensions.vscode-clangd"
+    "marimo-team.vscode-marimo"
     "ms-python.debugpy"
+    "ms-python.python"
     "ms-python.vscode-python-envs"
     "ms-toolsai.jupyter"
-    "marimo-team.vscode-marimo"
-    "charliermarsh.ruff"
+    "ms-vscode.cmake-tools"
+    "ms-vscode.cpptools"
+    "rust-lang.rust-analyzer"
   ] | each {|ext| do -i { ^code --install-extension $ext }}
 
   main stow "Code"
