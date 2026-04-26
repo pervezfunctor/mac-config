@@ -220,7 +220,8 @@ def "main apps" [] {
   brew install -q unar zip zstd
 }
 
-def "main fish autostart" [rc_file: string] {
+def "main fish autostart" [] {
+  let rc_file = ".zshrc"
   let rc_path = ($env.HOME | path join $rc_file)
   let marker = "exec fish"
 
@@ -260,7 +261,7 @@ let COMMANDS = {
   }
   "fish autostart": {
     desc: "fish auto starts with (through ~/.zshrc)"
-    run: {|| main fish autostart ".zshrc" }
+    run: {|| main fish autostart }
   }
   kitty: {
     desc: "Install and configure kitty"
