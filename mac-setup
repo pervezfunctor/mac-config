@@ -11,12 +11,12 @@ readonly DOT_DIR="$HOME/.mac-config"
 
 log() {
   printf "INFO: %s\n" "$*"
-  printf "INFO: %s\n" "$*" >>"${DOT_DIR}/.mac-setup.log"
+  printf "INFO: %s\n" "$*" >>"${HOME}/.mac-setup.log"
 }
 
 die() {
   printf "ERROR: %s\n" "$*" >&2
-  printf "ERROR: %s\n" "$*" >>"${DOT_DIR}/.mac-setup.log"
+  printf "ERROR: %s\n" "$*" >>"${HOME}/.mac-setup.log"
   exit 1
 }
 
@@ -54,8 +54,8 @@ cmd_line_tools_install() {
     xcode-select --install
     exit 0
   fi
-  if [ "$(uname -m)" = "arm64" ]; then
-    /usr/sbin/softwareupdate --install-rosetta --agree-to-license || true
+  if [ "$(uname -m)" = "arm64" ] && ! pkgutil --pkg-info com.apple.pkg.RosettaUpdateAuto >/dev/null 2>&1; then
+    /usr/sbin/softwareupdate --install-rosetta --agree-to-license
   fi
 }
 
@@ -103,8 +103,8 @@ shell_install() {
 init_log() {
   echo "Initializing log..."
   mkdir -p "${DOT_DIR}"
-  rm -f "${DOT_DIR}/.mac-setup.log" 2>/dev/null
-  touch "${DOT_DIR}/.mac-setup.log"
+  rm -f "${HOME}/.mac-setup.log" 2>/dev/null
+  touch "${HOME}/.mac-setup.log"
 }
 
 is_mac() {
@@ -119,7 +119,7 @@ main() {
 
   log "Starting mac-setup..."
   if has_cmd nu && has_cmd brew && has_cmd fish; then
-    nu "${DOT_DIR}/setup.nu" 2>&1 | tee -a "${DOT_DIR}/.mac-setup.log"
+    nu "${DOT_DIR}/setup.nu" 2>&1 | tee -a "${HOME}/.mac-setup.log"
   else
     shell_install
   fi
