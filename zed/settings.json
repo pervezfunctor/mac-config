@@ -25,13 +25,14 @@
   "git_panel": {
     "dock": "right"
   },
-  "icon_theme": "Catppuccin Macchiato",
+  "icon_theme": "Catppuccin Mocha",
   "tab_size": 2,
   "ui_font_size": 16,
+  "buffer_font_family": "JetBrainsMono Nerd Font Mono",
   "buffer_font_size": 15,
   "theme": {
     "mode": "system",
-    "light": "One Light",
-    "dark": "Tokyo Night Storm",
+    "light": "Catppuccin Frappé",
+    "dark": "Catppuccin Mocha",
   },
 }

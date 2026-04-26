@@ -109,7 +109,7 @@ def --env bootstrap [] {
 
 def "main fonts" [] {
   log+ "Installing fonts"
-  brew install -q font-jetbrains-mono-nerd-font font-monaspace-nerd-font
+  brew install -q font-jetbrains-mono-nerd-font
 }
 
 def "main vscode install" [] {
