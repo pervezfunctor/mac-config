@@ -1,0 +1,12 @@
+dms/
+*.pyc
+__pycache__/
+.uv-cache/
+.venv/
+.ruff_cache/
+.pytest_cache/
+node_modules/
+.config/kitty/local.conf
+scratch.*
+telemetry-id
+.claude/

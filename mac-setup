@@ -1,0 +1,128 @@
+#!/bin/sh
+
+set -eu
+
+has_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+readonly REPO_URL="https://github.com/pervezfunctor/mac-config.git"
+readonly DOT_DIR="$HOME/.mac-config"
+
+log() {
+  printf "INFO: %s\n" "$*"
+  printf "INFO: %s\n" "$*" >>"${DOT_DIR}/.mac-setup.log"
+}
+
+die() {
+  printf "ERROR: %s\n" "$*" >&2
+  printf "ERROR: %s\n" "$*" >>"${DOT_DIR}/.mac-setup.log"
+  exit 1
+}
+
+dotfiles_install() {
+  has_cmd git || die "git not found. Quitting."
+
+  if [ ! -d "$DOT_DIR" ]; then
+    log "Cloning dotfiles to $DOT_DIR."
+    git clone "$REPO_URL" "$DOT_DIR" || die "Failed to clone $REPO_URL"
+  elif [ -z "$(git -C "$DOT_DIR" status --porcelain)" ]; then
+    log "Dotfiles repo clean. Pulling latest changes..."
+    if ! git -C "$DOT_DIR" pull --rebase; then
+      log "Rebase failed. Aborting."
+      git -C "$DOT_DIR" rebase --abort || die "Failed to abort rebase."
+    fi
+  else
+    log "Dotfiles repo dirty. Skipping update"
+  fi
+}
+
+brew_install() {
+  has_cmd brew && return 0
+
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+}
+
+brew_packages_install() {
+  has_cmd brew || die "brew not found. Quitting."
+  brew install -q nushell trash-cli gum fish starship fzf carapace zoxide
+}
+
+cmd_line_tools_install() {
+  if ! xcode-select -p >/dev/null 2>&1; then
+    log "Installing Xcode Command Line Tools. Re-run the script after installation finishes."
+    xcode-select --install
+    exit 0
+  fi
+  if [ "$(uname -m)" = "arm64" ]; then
+    /usr/sbin/softwareupdate --install-rosetta --agree-to-license || true
+  fi
+}
+
+launch_fish_in_zsh_install() {
+  grep -q 'exec fish' ~/.zshrc 2>/dev/null || cat <<'EOF' >>~/.zshrc
+
+# Auto-start fish for interactive shells
+if [[ $- == *i* ]] && [[ -z "$FISH_LAUNCHED" ]]; then
+  export PATH="/opt/homebrew/bin:$PATH"
+  if command -v fish >/dev/null 2>&1; then
+    export FISH_LAUNCHED=1
+    exec fish || echo "Failed to start fish, staying in zsh"
+  fi
+fi
+
+EOF
+}
+
+fish_config() {
+  has_cmd fish || die "fish not installed. Quitting."
+  if [ -L ~/.config/fish/config.fish ] &&
+    [ "$(readlink ~/.config/fish/config.fish)" = "${DOT_DIR}/fish/config.fish" ]; then
+    return 0
+  fi
+
+  mkdir -p ~/.config/fish 2>/dev/null
+  if [ -f ~/.config/fish/config.fish ]; then
+    log "Trashing existing fish config..."
+    trash ~/.config/fish/config.fish
+  fi
+  ln -sf "${DOT_DIR}/fish/config.fish" ~/.config/fish/config.fish
+
+  launch_fish_in_zsh_install
+}
+
+shell_install() {
+  cmd_line_tools_install
+  dotfiles_install
+  brew_install
+  brew_packages_install
+  fish_config
+  has_cmd nu || die "nu not installed. Quitting."
+}
+
+init_log() {
+  echo "Initializing log..."
+  mkdir -p "${DOT_DIR}"
+  rm -f "${DOT_DIR}/.mac-setup.log" 2>/dev/null
+  touch "${DOT_DIR}/.mac-setup.log"
+}
+
+is_mac() {
+  [ "$(uname)" = "Darwin" ]
+}
+
+main() {
+  export PATH="/opt/homebrew/bin:$PATH"
+  init_log
+
+  is_mac || die "Not a Mac. Quitting."
+
+  log "Starting mac-setup..."
+  if has_cmd nu && has_cmd brew && has_cmd fish; then
+    nu "${DOT_DIR}/setup.nu" 2>&1 | tee -a "${DOT_DIR}/.mac-setup.log"
+  else
+    shell_install
+  fi
+}
+
+main "$@"
