@@ -19,15 +19,6 @@ export def dir-exists [path: string] {
   ($path | path type) == "dir"
 }
 
-def file-or-link-exists [p: string] {
-    if not ($p | path exists) {
-      return false
-    }
-
-    let t = ($p | path type)
-    $t == "file" or $t == "symlink"
-}
-
 def is-mac [] {
     $nu.os-info.name == "macos"
 }
@@ -63,18 +54,9 @@ export def sln [src: string, dst: string] {
     return
   }
 
-  if (file-or-link-exists $dst) {
-    log+ $"removing existing ($dst)"
-
-    if (has-cmd trash) {
-      ^trash $dst
-    } else {
-      rm -f $dst
-    }
-  }
-
-  log+ $"linking ($src) -> ($dst)"
-  ^ln -s $src $dst
+  do -i { ^trash $dst e> /dev/null }
+  log info $"linking ($src) -> ($dst)"
+  ^ln -sf $src $dst
 }
 
 export def "main stow" [package: string] {
@@ -255,14 +237,6 @@ let COMMANDS = {
     desc: "Install and configure fish shell"
     run: {|| main fish }
   }
-  "fish default": {
-    desc: "Set fish as the default shell"
-    run: {|| main fish default }
-  }
-  "fish autostart": {
-    desc: "fish auto starts with (through ~/.zshrc)"
-    run: {|| main fish autostart }
-  }
   kitty: {
     desc: "Install and configure kitty"
     run: {|| main kitty }
@@ -290,6 +264,14 @@ let COMMANDS = {
   apps: {
     desc: "Install apps telegram, obsidian"
     run: {|| main apps }
+  }
+  "fish default": {
+    desc: "Set fish as the default shell"
+    run: {|| main fish default }
+  }
+  "fish autostart": {
+    desc: "fish auto starts with (through ~/.zshrc)"
+    run: {|| main fish autostart }
   }
 }
 
@@ -380,8 +362,7 @@ def main [...cmds: string] {
 
   if ($cmds | is-empty) {
     gum-select-install
-    return
+  } else {
+    $cmds | each {|cmd| run-command $cmd } | ignore
   }
-
-  $cmds | each {|cmd| run-command $cmd } | ignore
 }

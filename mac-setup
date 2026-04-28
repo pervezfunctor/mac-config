@@ -14,6 +14,11 @@ log() {
   printf "INFO: %s\n" "$*" >>"${HOME}/.mac-setup.log"
 }
 
+warn() {
+  printf "WARNING: %s\n" "$*"
+  printf "WARNING: %s\n" "$*" >>"${HOME}/.fedora-config.log"
+}
+
 die() {
   printf "ERROR: %s\n" "$*" >&2
   printf "ERROR: %s\n" "$*" >>"${HOME}/.mac-setup.log"
@@ -37,6 +42,17 @@ dotfiles_install() {
   fi
 }
 
+system_install() {
+  if ! xcode-select -p >/dev/null 2>&1; then
+    log "Installing Xcode Command Line Tools. Re-run the script after installation finishes."
+    xcode-select --install
+    exit 0
+  fi
+  if [ "$(uname -m)" = "arm64" ] && ! pkgutil --pkg-info com.apple.pkg.RosettaUpdateAuto >/dev/null 2>&1; then
+    /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+  fi
+}
+
 brew_install() {
   has_cmd brew && return 0
 
@@ -48,19 +64,12 @@ brew_packages_install() {
   brew install -q nushell trash-cli gum fish starship fzf carapace zoxide
 }
 
-cmd_line_tools_install() {
-  if ! xcode-select -p >/dev/null 2>&1; then
-    log "Installing Xcode Command Line Tools. Re-run the script after installation finishes."
-    xcode-select --install
-    exit 0
-  fi
-  if [ "$(uname -m)" = "arm64" ] && ! pkgutil --pkg-info com.apple.pkg.RosettaUpdateAuto >/dev/null 2>&1; then
-    /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-  fi
+is_fish_in_zsh() {
+  grep -q 'exec fish' ~/.zshrc 2>/dev/null
 }
 
 launch_fish_in_zsh_install() {
-  grep -q 'exec fish' ~/.zshrc 2>/dev/null || cat <<'EOF' >>~/.zshrc
+  is_fish_in_zsh || cat <<'EOF' >>~/.zshrc
 
 # Auto-start fish for interactive shells
 if [[ $- == *i* ]] && [[ -z "$FISH_LAUNCHED" ]]; then
@@ -91,13 +100,22 @@ fish_config() {
   launch_fish_in_zsh_install
 }
 
-shell_install() {
-  cmd_line_tools_install
+fresh_install() {
+  system_install
   dotfiles_install
+
   brew_install
   brew_packages_install
+
   fish_config
   has_cmd nu || die "nu not installed. Quitting."
+}
+
+has_commands() {
+  for cmd in "$@"; do
+    has_cmd "$cmd" || return 1
+  done
+  return 0
 }
 
 init_log() {
@@ -116,11 +134,10 @@ main() {
 
   is_mac || die "Not a Mac. Quitting."
 
-  log "Starting mac-setup..."
-  if has_cmd nu && has_cmd brew && has_cmd fish; then
-    nu "${DOT_DIR}/setup.nu" 2>&1 | tee -a "${HOME}/.mac-setup.log"
+  if has_commands git fish nu trash starship gum brew; then
+    log "All commands found, skipping fresh install. Use '${DOT_DIR}/scripts/setup.nu' to configure your system"
   else
-    shell_install
+    fresh_install
   fi
 }
 
