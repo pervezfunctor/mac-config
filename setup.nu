@@ -300,14 +300,18 @@ def run-command [cmd: string] {
   do $action.run
 }
 
+const DEFAULT_INSTALL = ["uv", "vscode"]
+
 def gum-select-install [] {
   if not (has-cmd gum) {
     die "gum is required for interactive selection"
   }
 
+  let defaults = ($DEFAULT_INSTALL | str join ",")
+
   options
   | str join "\n"
-  | ^gum choose --no-limit
+  | ^gum choose --no-limit --selected $defaults
   | lines
   | each {|cmd| run-command ($cmd | str trim) }
 }
