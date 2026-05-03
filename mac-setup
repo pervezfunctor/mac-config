@@ -6,22 +6,20 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
-readonly REPO_URL="https://github.com/pervezfunctor/mac-config.git"
-readonly DOT_DIR="$HOME/.mac-config"
+readonly REPO_NAME="mac-config"
+readonly REPO_URL="https://github.com/pervezfunctor/${REPO_NAME}.git"
+readonly DOT_DIR="$HOME/.${REPO_NAME}"
 
-log() {
-  printf "INFO: %s\n" "$*"
-  printf "INFO: %s\n" "$*" >>"${HOME}/.mac-setup.log"
-}
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+BOLD='\033[1m'
+RESET='\033[0m'
 
-warn() {
-  printf "WARNING: %s\n" "$*"
-  printf "WARNING: %s\n" "$*" >>"${HOME}/.fedora-config.log"
-}
-
+log() { printf "${GREEN}✔${RESET} %s\n" "$*"; }
+warn() { printf "${YELLOW}${BOLD}⚠${RESET} %s\n" "$*" >&2; }
 die() {
-  printf "ERROR: %s\n" "$*" >&2
-  printf "ERROR: %s\n" "$*" >>"${HOME}/.mac-setup.log"
+  printf "${RED}${BOLD}✖${RESET} %s\n" "$*" >&2
   exit 1
 }
 
@@ -54,59 +52,67 @@ system_install() {
 }
 
 brew_install() {
-  has_cmd brew && return 0
-
+  has_cmd brew && return
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 
 brew_packages_install() {
   has_cmd brew || die "brew not found. Quitting."
-  brew install -q nushell trash-cli gum fish starship fzf carapace zoxide
+  brew install -q fish nushell trash-cli starship fzf zoxide bat direnv \
+    eza fd gh jq xh ripgrep tealdeer make unzip
+
+  tldr --update || true
 }
 
-is_fish_in_zsh() {
-  grep -q 'exec fish' ~/.zshrc 2>/dev/null
-}
+set_fish_as_default_shell() {
+  has_cmd fish || die "fish not found. Quitting."
 
-launch_fish_in_zsh_install() {
-  is_fish_in_zsh || cat <<'EOF' >>~/.zshrc
+  fish_path="$(command -v fish)"
 
-# Auto-start fish for interactive shells
-if [[ $- == *i* ]] && [[ -z "$FISH_LAUNCHED" ]]; then
-  export PATH="/opt/homebrew/bin:$PATH"
-  if command -v fish >/dev/null 2>&1; then
-    export FISH_LAUNCHED=1
-    exec fish || echo "Failed to start fish, staying in zsh"
+  if [ "$SHELL" = "$fish_path" ]; then
+    log "fish is already the default shell."
+    return
   fi
-fi
 
-EOF
+  if ! grep -qxF "$fish_path" /etc/shells 2>/dev/null; then
+    warn "Adding $fish_path to /etc/shells."
+    if ! printf '%s\n' "$fish_path" | sudo tee -a /etc/shells >/dev/null; then
+      warn "Failed to add $fish_path to /etc/shells."
+      return
+    fi
+  else
+    log "$fish_path is already in /etc/shells."
+  fi
+
+  if chsh -s "$fish_path"; then
+    log "Default shell set to fish ($fish_path). Re-login to apply."
+  else
+    warn "Failed to set fish as default shell. Try running 'chsh -s $fish_path' manually."
+  fi
 }
 
 fish_config() {
   has_cmd fish || die "fish not installed. Quitting."
   if [ -L ~/.config/fish/config.fish ] &&
     [ "$(readlink ~/.config/fish/config.fish)" = "${DOT_DIR}/fish/config.fish" ]; then
-    return 0
+    return
   fi
 
-  mkdir -p ~/.config/fish 2>/dev/null
+  mkdir -p ~/.config/fish
   if [ -f ~/.config/fish/config.fish ]; then
     log "Trashing existing fish config..."
     trash ~/.config/fish/config.fish
   fi
   ln -sf "${DOT_DIR}/fish/config.fish" ~/.config/fish/config.fish
 
-  launch_fish_in_zsh_install
+  set_fish_as_default_shell
 }
 
 fresh_install() {
   system_install
   dotfiles_install
-
   brew_install
   brew_packages_install
-
   fish_config
   has_cmd nu || die "nu not installed. Quitting."
 }
@@ -115,24 +121,12 @@ has_commands() {
   for cmd in "$@"; do
     has_cmd "$cmd" || return 1
   done
-  return 0
-}
-
-init_log() {
-  echo "Initializing log..."
-  rm -f "${HOME}/.mac-setup.log" 2>/dev/null
-  touch "${HOME}/.mac-setup.log"
-}
-
-is_mac() {
-  [ "$(uname)" = "Darwin" ]
 }
 
 main() {
   export PATH="/opt/homebrew/bin:$PATH"
-  init_log
 
-  is_mac || die "Not a Mac. Quitting."
+  [ "$(uname)" = "Darwin" ] || die "Not a Mac. Quitting."
 
   if has_commands git fish nu trash starship gum brew; then
     log "All commands found, skipping fresh install. Use '${DOT_DIR}/scripts/setup.nu' to configure your system"
