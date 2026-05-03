@@ -70,3 +70,25 @@ end
 if has_cmd uvx
     alias uv-marimo-standalone 'uvx --with pyzmq --from "marimo[sandbox]" marimo edit --sandbox'
 end
+
+if has_cmd zed
+    set -gx VISUAL zed
+else if has_cmd zeditor
+    set -gx VISUAL zeditor
+else if has_cmd code
+    set -gx VISUAL code
+else if has_cmd antigravity
+    set -gx VISUAL antigravity
+end
+
+if has_cmd nvim
+    set -gx EDITOR nvim
+else if has_cmd micro
+    set -gx EDITOR micro
+else if has_cmd emacs
+    set -gx EDITOR emacs
+else if has_cmd vim
+    set -gx EDITOR vim
+else
+    set -gx EDITOR $VISUAL
+end
