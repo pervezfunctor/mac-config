@@ -6,7 +6,6 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 node_modules/
-.config/kitty/local.conf
 scratch.*
 telemetry-id
 .claude/

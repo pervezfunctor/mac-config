@@ -72,13 +72,13 @@ if has_cmd uvx
 end
 
 if has_cmd zed
-    set -gx VISUAL zed
+    set -gx VISUAL zed --wait
 else if has_cmd zeditor
-    set -gx VISUAL zeditor
+    set -gx VISUAL zeditor --wait
 else if has_cmd code
-    set -gx VISUAL code
+    set -gx VISUAL code --wait
 else if has_cmd antigravity
-    set -gx VISUAL antigravity
+    set -gx VISUAL antigravity --wait
 end
 
 if has_cmd nvim
@@ -89,6 +89,6 @@ else if has_cmd emacs
     set -gx EDITOR emacs
 else if has_cmd vim
     set -gx EDITOR vim
-else
+else if has_cmd $VISUAL
     set -gx EDITOR $VISUAL
 end

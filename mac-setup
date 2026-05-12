@@ -46,22 +46,31 @@ system_install() {
     xcode-select --install
     exit 0
   fi
+
   if [ "$(uname -m)" = "arm64" ] && ! pkgutil --pkg-info com.apple.pkg.RosettaUpdateAuto >/dev/null 2>&1; then
-    /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+    log "Installing Rosetta Update. It's okay if this fails."
+    /usr/sbin/softwareupdate --install-rosetta --agree-to-license || true
   fi
 }
 
 brew_install() {
   has_cmd brew && return
+
+  log "Installing homebrew..."
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  log "Homebrew installed."
 }
 
 brew_packages_install() {
   has_cmd brew || die "brew not found. Quitting."
+
+  log "Installing homebrew packages..."
   brew install -q fish nushell trash-cli starship fzf zoxide bat direnv \
     eza fd gh jq xh ripgrep tealdeer make unzip
 
   tldr --update || true
+
+  log "Homebrew packages installed."
 }
 
 set_fish_as_default_shell() {
@@ -84,6 +93,7 @@ set_fish_as_default_shell() {
     log "$fish_path is already in /etc/shells."
   fi
 
+  log "Setting fish as default shell..."
   if chsh -s "$fish_path"; then
     log "Default shell set to fish ($fish_path). Re-login to apply."
   else
@@ -93,28 +103,22 @@ set_fish_as_default_shell() {
 
 fish_config() {
   has_cmd fish || die "fish not installed. Quitting."
+
+  set_fish_as_default_shell
+
   if [ -L ~/.config/fish/config.fish ] &&
     [ "$(readlink ~/.config/fish/config.fish)" = "${DOT_DIR}/fish/config.fish" ]; then
+    log "fish config is already symlinked. Skipping."
     return
   fi
 
-  mkdir -p ~/.config/fish
+  mkdir -p ~/.config/fish || true
   if [ -f ~/.config/fish/config.fish ]; then
     log "Trashing existing fish config..."
     trash ~/.config/fish/config.fish
   fi
+  log "Symlinking fish config..."
   ln -sf "${DOT_DIR}/fish/config.fish" ~/.config/fish/config.fish
-
-  set_fish_as_default_shell
-}
-
-fresh_install() {
-  system_install
-  dotfiles_install
-  brew_install
-  brew_packages_install
-  fish_config
-  has_cmd nu || die "nu not installed. Quitting."
 }
 
 has_commands() {
@@ -128,11 +132,21 @@ main() {
 
   [ "$(uname)" = "Darwin" ] || die "Not a Mac. Quitting."
 
-  if has_commands git fish nu trash starship gum brew; then
-    log "All commands found, skipping fresh install. Use '${DOT_DIR}/scripts/setup.nu' to configure your system"
-  else
-    fresh_install
-  fi
+  echo ""
+  log "Starting mac setup..."
+  echo ""
+
+  system_install
+  dotfiles_install
+  brew_install
+  brew_packages_install
+  fish_config
+
+  has_cmd nu || die "nu not installed. Quitting."
+
+  echo ""
+  log "mac setup complete!"
+  echo ""
 }
 
 main "$@"

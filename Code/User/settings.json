@@ -12,9 +12,7 @@
   "editor.insertSpaces": true,
   "editor.minimap.enabled": false,
   "editor.renderWhitespace": "boundary",
-  "editor.rulers": [
-    80
-  ],
+  "editor.rulers": [80],
   "editor.smoothScrolling": true,
   "editor.snippetSuggestions": "bottom",
   "editor.tabCompletion": "on",
