@@ -110,7 +110,7 @@ def "main vscode" [] {
 
 def "main cpp" [] {
   log+ "Installing C++ tools"
-  brew install -q make cmake boost catch2 ccache clang-format cpp-gsl ninja
+  brew install -q make cmake boost catch2 ccache clang-format cpp-gsl ninja watchexec pkg-config
 }
 
 def "main rust" [] {
