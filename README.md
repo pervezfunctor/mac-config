@@ -10,34 +10,16 @@ curl -fsSL https://raw.githubusercontent.com/pervezfunctor/mac-config/main/mac-s
 
 The bootstrap script clones the repo to `~/.mac-config`, installs homebrew and configures shell.
 
+Reboot your computer and make sure `fish` is your default shell.
+
+```sh
+echo $SHELL
+```
+
 ## Nushell setup commands
 
-After the repo is available locally, run the Nushell entrypoint directly:
+You could install and configure additional tools(like vscode, uv) using the following interactive script.
 
 ```sh
 setup.nu
 ```
-
-Available commands include:
-
-```sh
-nu setup.nu help
-nu setup.nu kitty
-nu setup.nu vscode
-```
-
-## Dotfile layout
-
-`setup.nu stow` is intentionally simple.
-
-- Pass a package name like `kitty`, or `niri`
-- The package is resolved from `$DOT_DIR/<package>`
-- Files are linked into `~/.config/<package>/...`
-
-Example:
-
-```sh
-nu setup.nu stow kitty
-```
-
-This links files from `$DOT_DIR/kitty` into `~/.config/kitty`.
