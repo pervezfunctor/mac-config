@@ -141,6 +141,20 @@ def "main kitty" [] {
   main stow "kitty"
 }
 
+def "main vp" [] {
+  if (has-cmd vp) {
+    log info "vp is already installed"
+    return
+  }
+
+  log info "Installing vp"
+  curl -fsSL https://vite.plus | bash
+
+  log info "Installing node"
+  ~/.vite-plus/bin/vp env install latest
+  path add $"($env.HOME)/.vite-plus/bin"
+}
+
 def "main apps" [] {
   log+ "Installing apps"
   brew install -q --cask obsidian telegram-desktop
@@ -175,6 +189,10 @@ let COMMANDS = {
   apps: {
     desc: "Install apps like telegram, obsidian"
     run: {|| main apps }
+  }
+  vp: {
+    desc: "Install vp"
+    run: {|| main vp }
   }
 }
 
