@@ -45,16 +45,23 @@ system_install() {
     log "Installing Xcode Command Line Tools. Re-run the script after installation finishes."
     xcode-select --install
     exit 0
+  else
+    log "Xcode Command Line Tools already installed. Skipping."
   fi
 
   if [ "$(uname -m)" = "arm64" ] && ! pkgutil --pkg-info com.apple.pkg.RosettaUpdateAuto >/dev/null 2>&1; then
     log "Installing Rosetta Update. It's okay if this fails."
     /usr/sbin/softwareupdate --install-rosetta --agree-to-license || true
+  else
+    log "Rosetta Update already installed. Skipping."
   fi
 }
 
 brew_install() {
-  has_cmd brew && return
+  if has_cmd brew; then
+    log "Homebrew already installed. Skipping."
+    return
+  fi
 
   log "Installing homebrew..."
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -65,8 +72,8 @@ brew_packages_install() {
   has_cmd brew || die "brew not found. Quitting."
 
   log "Installing homebrew packages..."
-  brew install -q fish nushell trash-cli starship fzf zoxide bat direnv \
-    eza fd gh jq xh ripgrep tealdeer make unzip
+  brew update
+  brew install -q fish nushell trash-cli starship fzf eza zoxide bat gh ripgrep tealdeer direnv fd jq xh make unzip
 
   tldr --update || true
 
