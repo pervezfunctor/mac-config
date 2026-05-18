@@ -52,7 +52,10 @@ def "main stow" [package: string] {
     let src = ($f | path expand)
     let rel = ($src | path relative-to $root)
     let dst = ($env.HOME | path join ".config" $package $rel)
-    mkdir $dst
+    let parent = ($dst | path dirname)
+    if not ($parent | path exists) {
+      mkdir $parent
+    }
     sln $src $dst
   }
 }
