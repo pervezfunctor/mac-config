@@ -101,7 +101,7 @@ def "main vscode config" [] {
     "ms-vscode.cmake-tools"
     "ms-vscode.cpptools"
     "rust-lang.rust-analyzer"
-  ] | each {|ext| do -i { ^code --install-extension $ext }}
+  ] | each {|ext| try { ^code --install-extension $ext } catch { |e| log warning $"Failed to install ($ext): ($e.msg)" }}
 
   main stow "Code"
 }
