@@ -20,7 +20,7 @@ Install homebrew, the most popular package manager on macos(similar to apt on ub
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-# Python
+## Python
 
 Install some of these recommended packages. Ghostty is the best terminal on macos and vscode editor is excellent for python. uv is required for python development.
 
