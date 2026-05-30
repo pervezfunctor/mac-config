@@ -157,11 +157,12 @@ def "main uv" [] {
   brew install -q uv
 }
 
-def "main kitty" [] {
-  log+ "Installing kitty"
-  brew install -q kitty
+def "main ghostty" [] {
+  log+ "Installing ghostty"
+  brew install -q ghostty
   main fonts
-  main stow "kitty"
+  do -i { trash $"($env.HOME)/Library/Application Support/com.mitchellh.ghostty/config" }
+  main stow "ghostty"
 }
 
 def "main vp" [] {
@@ -185,9 +186,9 @@ def "main apps" [] {
 }
 
 let COMMANDS = {
-  kitty: {
-    desc: "Install and configure kitty"
-    run: {|| main kitty }
+  ghostty: {
+    desc: "Install and configure ghostty"
+    run: {|| main ghostty }
   }
   uv: {
     desc: "Install uv(Python)"
