@@ -35,29 +35,44 @@ def die [msg: string] {
 }
 
 def sln [src: string, dst: string] {
-  if not (($src | path exists) and (($src | path type) != "dir")) {
+  if (not ($src | path exists)) or (($src | path type) == "dir") {
     log error $"($src) does not exist or is a directory. Skipping linking."
     return
   }
 
-  do -i { ^trash $dst e> /dev/null }
+  if (has-cmd trash) {
+    trash $dst
+  } else {
+    rm -rf $dst
+  }
   log info $"linking ($src) -> ($dst)"
-  ^ln -sf $src $dst
+  ln -sf $src $dst
+}
+
+def stow-any [src: string, dst: string] {
+  let root = ($src | path expand)
+
+  for f in (glob $"($root)/**/*" --no-dir) {
+    let p = ($f | path expand)
+    let rel = ($p | path relative-to $root)
+    let target = ($dst | path join $rel)
+    let parent = ($target | path dirname)
+    if not ($parent | path exists) {
+      mkdir $parent
+    }
+    sln $p $target
+  }
 }
 
 def "main stow" [package: string] {
   let root = (($env.DOT_DIR | path join $package) | path expand)
+  let target = ($env.HOME | path join ".config" $package)
+  stow-any $root $target
+}
 
-  for f in (glob $"($root)/**/*" --no-dir) {
-    let src = ($f | path expand)
-    let rel = ($src | path relative-to $root)
-    let dst = ($env.HOME | path join ".config" $package $rel)
-    let parent = ($dst | path dirname)
-    if not ($parent | path exists) {
-      mkdir $parent
-    }
-    sln $src $dst
-  }
+def "main stow home" [package: string] {
+  let root = (($env.DOT_DIR | path join $package) | path expand)
+  stow-any $root $env.HOME
 }
 
 def --env bootstrap [] {
@@ -101,7 +116,12 @@ def "main vscode config" [] {
     "ms-vscode.cmake-tools"
     "ms-vscode.cpptools"
     "rust-lang.rust-analyzer"
-  ] | each {|ext| try { ^code --install-extension $ext } catch { |e| log warning $"Failed to install ($ext): ($e.msg)" }}
+  ] | each { |ext| try {
+    code --install-extension $ext
+    } catch { |e|
+      log warning $"Failed to install ($ext): ($e.msg)"
+    }
+  }
 
   main stow "Code"
 }

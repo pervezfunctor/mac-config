@@ -1,4 +1,5 @@
 {
+  "C_Cpp.intelliSenseEngine": "disabled",
   "editor.acceptSuggestionOnEnter": "smart",
   "editor.autoIndent": "advanced",
   "editor.cursorSmoothCaretAnimation": "on",
@@ -25,6 +26,8 @@
   "nix.enableLanguageServer": true,
   "nix.formatterPath": "alejandra",
   "nix.serverPath": "nixd",
+  "python.analysis.typeCheckingMode": "strict",
+  "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
   "update.mode": "manual",
   "window.titleBarStyle": "custom",
   "workbench.colorTheme": "Catppuccin Mocha",
