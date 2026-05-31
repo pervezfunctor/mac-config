@@ -18,6 +18,7 @@ Install homebrew, the most popular package manager on macos(similar to apt on ub
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+export PATH="/opt/homebrew/bin:$PATH"
 ```
 
 ## Python
@@ -44,7 +45,7 @@ and set as default with the following commands.
 
 ```bash
 printf '%s\n' "$(command -v fish)" | sudo tee -a /etc/shells
-chsh -s $(command -v fish)
+sudo chsh -s $(command -v fish) "$USER"
 ```
 
 Install and use starship prompt.
@@ -53,10 +54,16 @@ Install and use starship prompt.
 curl -sS https://starship.rs/install.sh | sh
 ```
 
-If absent, add the following line to ~/.config/fish/config.fish
+Add starship to your shell config.
 
 ```fish
-starship init fish | source
+echo 'starship init fish | source' >> ~/.config/fish/config.fish
+```
+
+Make sure to add the following line to add homebrew to your PATH in ~/.config/fish/config.fish
+
+```fish
+set -gx PATH "/opt/homebrew/bin:$PATH"
 ```
 
 Few modern shell tools
