@@ -57,6 +57,8 @@ curl -sS https://starship.rs/install.sh | sh
 Add starship to your shell config.
 
 ```fish
+mkdir -p ~/.config/fish
+touch ~/.config/fish/config.fish
 echo 'starship init fish | source' >> ~/.config/fish/config.fish
 ```
 
