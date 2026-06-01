@@ -41,7 +41,7 @@ def sln [src: string, dst: string] {
   }
 
   if (has-cmd trash) {
-    trash $dst
+    do -i { trash $dst }
   } else {
     rm -rf $dst
   }

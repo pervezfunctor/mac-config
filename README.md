@@ -23,3 +23,11 @@ You could install and configure additional tools(like vscode, uv) using the foll
 ```sh
 setup.nu
 ```
+
+## Known Issues
+
+If ghostty font or theme does not look right, then execute the following
+
+```bash
+trash "$HOME/Library/Application\ Support/com.mitchellh.ghostty/config.ghostty" 2>/dev/null
+```
