@@ -69,7 +69,7 @@ end
 alias gtree 'git-tree'
 
 if has_cmd eza
-  alias ls 'eza --icons --group-directories-first'
+  alias l 'eza --icons --group-directories-first'
   alias ll 'eza --icons --long --group-directories-first'
   alias la 'eza --icons --all --group-directories-first'
   alias lt 'eza --icons --tree'
