@@ -14,6 +14,8 @@ if [[ $- != *i* ]]; then
   return
 fi
 
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
 HISTFILE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/history"
 mkdir -p "$(dirname "$HISTFILE")"
 HISTSIZE=50000

@@ -18,7 +18,7 @@ Install homebrew, the most popular package manager on macos(similar to apt on ub
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-export PATH="/opt/homebrew/bin:$PATH"
+eval "$(/opt/homebrew/bin/brew shellenv)"
 ```
 
 ## Python
