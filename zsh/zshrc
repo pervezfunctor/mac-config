@@ -47,15 +47,25 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 
-alias g='git'
-alias gs='git status'
-alias ga='git add'
-alias gc='git commit'
+alias gst='git status'
+alias gsu='git status -u'
+alias gsh='git stash'
+alias gia='git add'
+alias gcm='git commit -m'
 alias gp='git push'
 alias gl='git log --oneline -20'
 alias gd='git diff'
 alias gb='git branch'
 alias gco='git checkout'
+alias gpl='git pull'
+alias gbc='git checkout -b'
+alias gsl='git stash list'
+alias gsa='git stash apply'
+alias gcan='git commit --amend --no-edit'
+
+gtree() {
+  git status --short | awk '{print $2}' | tree --fromfile
+}
 
 bindkey -e
 bindkey '^[[1;3C' forward-word
@@ -87,6 +97,12 @@ fi
 
 if has_cmd fzf; then
   eval "$(fzf --zsh)"
+fi
+
+if has_cmd uvx; then
+  pn() {
+    uvx --with pyzmq --from "marimo[sandbox]" marimo edit --sandbox "$@"
+  }
 fi
 
 if has_cmd carapace; then
