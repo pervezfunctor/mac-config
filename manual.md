@@ -71,7 +71,7 @@ set -gx PATH "/opt/homebrew/bin:$PATH"
 Few modern shell tools
 
 ```bash
-brew install trash-cli fzf eza zoxide bat gh ripgrep tealdeer direnv fd jq bottom htop
+brew install fzf eza zoxide bat gh ripgrep tealdeer direnv fd jq bottom htop
 ```
 
 If this is too cumbersome, use my script to setup what you need from this repo`s [README](https://github.com/pervezfunctor/mac-config)
