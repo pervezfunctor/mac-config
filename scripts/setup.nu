@@ -166,10 +166,6 @@ def "main ghostty" [] {
 }
 
 def set-fish-as-default-shell [] {
-  if not (has-cmd fish) {
-    die "fish not found. Quitting."
-  }
-
   let fish_path = (which fish | first | get path)
 
   if (($env.SHELL? | default "") == $fish_path) {

@@ -23,15 +23,21 @@ export PATH="/opt/homebrew/bin:$PATH"
 
 ## Python
 
-Install some of these recommended packages. Ghostty is the best terminal on macos and vscode editor is excellent for python development. uv is required for python development.
+Install some of these recommended packages. vscode editor is excellent for python development. uv is required for python development.
 
 ```bash
-brew install ghostty uv visual-studio-code font-jetbrains-mono-nerd-font fish starship
+brew install uv visual-studio-code font-jetbrains-mono-nerd-font 
 ```
 
-Use `Catppuccin Mocha` theme and `Jetbrains Mono Nerd Font` font in ghostty terminal and vscode editor. Use `cmd+,` to open settings(both ghostty and vscode).
+Use `Catppuccin Mocha` theme and `Jetbrains Mono Nerd Font` font in your terminal and vscode editor. Use `cmd+,` to open settings(both terminal and vscode).
 
 ## Shell (Optional)
+
+Install packages for the shell.
+
+```bash
+brew install fish starship fzf eza zoxide bat gh ripgrep tealdeer direnv fd jq bottom htop
+```
 
 Set fish as the default shell. This is an excellent interactive shell with near perfect defaults.
 
@@ -48,16 +54,10 @@ touch ~/.config/fish/config.fish
 echo 'starship init fish | source' >> ~/.config/fish/config.fish
 ```
 
-Make sure to add the following line to add homebrew to your PATH in ~/.config/fish/config.fish
+Make sure to add homebrew to your PATH in ~/.config/fish/config.fish
 
 ```fish
 echo 'set -gx PATH "/opt/homebrew/bin:$PATH"' >> ~/.config/fish/config.fish
-```
-
-Few modern shell tools
-
-```bash
-brew install fzf eza zoxide bat gh ripgrep tealdeer direnv fd jq bottom htop
 ```
 
 If this is too cumbersome, use my script to setup what you need from this repo`s [README](https://github.com/pervezfunctor/mac-config)

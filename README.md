@@ -29,5 +29,5 @@ setup.nu
 If ghostty font or theme does not look right, then execute the following
 
 ```bash
-trash "$HOME/Library/Application\ Support/com.mitchellh.ghostty/config.ghostty" 2>/dev/null
+setup.nu ghostty fix
 ```

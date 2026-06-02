@@ -15,36 +15,42 @@ end
 set -gx DOT_DIR $HOME/.mac-config
 
 fish_add_path --global --move \
+  /opt/homebrew/bin \
   $DOT_DIR/scripts \
   $HOME/bin \
   $HOME/.cargo/bin \
   $HOME/.local/bin
 
-eval "$(/opt/homebrew/bin/brew shellenv)"
-
-if status is-interactive
-  if has_cmd zoxide
-    zoxide init fish | source
-  end
-
-  if has_cmd fzf
-    fzf --fish | source
-  end
-
-  if has_cmd starship
-    starship init fish | source
-  end
-
-  if has_cmd carapace
-    set -gx CARAPACE_BRIDGES 'zsh,fish,bash,inshellisense' # optional
-    carapace _carapace | source
-  end
+if not status is-interactive
+  return
 end
+
+if has_cmd /opt/homebrew/bin/brew
+  /opt/homebrew/bin/brew shellenv | source
+end
+
+if has_cmd zoxide
+  zoxide init fish | source
+end
+
+if has_cmd fzf
+  fzf --fish | source
+end
+
+if has_cmd starship
+  starship init fish | source
+end
+
+if has_cmd carapace
+  set -gx CARAPACE_BRIDGES 'zsh,fish,bash,inshellisense' # optional
+  carapace _carapace | source
+end
+
 
 function fish_greeting
 end
 
-alias gs 'git stash'
+alias gsh 'git stash'
 alias gp 'git push'
 alias gb 'git branch'
 alias gbc 'git checkout -b'
@@ -53,7 +59,7 @@ alias gst 'git status'
 alias gsu 'git status -u'
 alias gcan 'git commit --amend --no-edit'
 alias gsa 'git stash apply'
-alias gfm 'git pull'
+alias gpl 'git pull'
 alias gcm 'git commit -m'
 alias gia 'git add'
 alias gco 'git checkout'
