@@ -59,6 +59,9 @@ system_install() {
 
 brew_install() {
   if has_cmd brew; then
+    log "Updating brew..."
+    brew update
+
     log "Homebrew already installed. Skipping."
     return
   fi
@@ -69,69 +72,18 @@ brew_install() {
 }
 
 brew_packages_install() {
-  has_cmd brew || die "brew not found. Quitting."
-
   log "Installing homebrew packages..."
-  brew update
-  brew install -q fish nushell trash-cli starship fzf eza zoxide bat gh ripgrep tealdeer direnv fd jq xh make unzip
-
-  tldr --update || true
+  brew install -q nushell font-jetbrains-mono-nerd-font uv
 
   log "Homebrew packages installed."
 }
 
-set_fish_as_default_shell() {
-  has_cmd fish || die "fish not found. Quitting."
+zsh_setup() {
+  log "Trashing zsh config..."
+  trash ~/.zshrc
 
-  fish_path="$(command -v fish)"
-
-  if [ "$SHELL" = "$fish_path" ]; then
-    log "fish is already the default shell."
-    return
-  fi
-
-  if ! grep -qxF "$fish_path" /etc/shells 2>/dev/null; then
-    warn "Adding $fish_path to /etc/shells."
-    if ! printf '%s\n' "$fish_path" | sudo tee -a /etc/shells >/dev/null; then
-      warn "Failed to add $fish_path to /etc/shells."
-      return
-    fi
-  else
-    log "$fish_path is already in /etc/shells."
-  fi
-
-  log "Setting fish as default shell..."
-  if chsh -s "$fish_path"; then
-    log "Default shell set to fish ($fish_path). Re-login to apply."
-  else
-    warn "Failed to set fish as default shell. Try running 'chsh -s $fish_path' manually."
-  fi
-}
-
-fish_config() {
-  has_cmd fish || die "fish not installed. Quitting."
-
-  set_fish_as_default_shell
-
-  if [ -L ~/.config/fish/config.fish ] &&
-    [ "$(readlink ~/.config/fish/config.fish)" = "${DOT_DIR}/fish/config.fish" ]; then
-    log "fish config is already symlinked. Skipping."
-    return
-  fi
-
-  mkdir -p ~/.config/fish || true
-  if [ -f ~/.config/fish/config.fish ]; then
-    log "Trashing existing fish config..."
-    trash ~/.config/fish/config.fish
-  fi
-  log "Symlinking fish config..."
-  ln -sf "${DOT_DIR}/fish/config.fish" ~/.config/fish/config.fish
-}
-
-has_commands() {
-  for cmd in "$@"; do
-    has_cmd "$cmd" || return 1
-  done
+  log "Symlinking zsh config..."
+  ln -sf "${DOT_DIR}/zsh/zshrc" ~/.zshrc
 }
 
 main() {
@@ -147,9 +99,7 @@ main() {
   dotfiles_install
   brew_install
   brew_packages_install
-  fish_config
-
-  has_cmd nu || die "nu not installed. Quitting."
+  zsh_setup
 
   echo ""
   log "mac setup complete!"

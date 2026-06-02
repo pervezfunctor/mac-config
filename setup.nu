@@ -35,16 +35,17 @@ def die [msg: string] {
 }
 
 def sln [src: string, dst: string] {
-  if (not ($src | path exists)) or (($src | path type) == "dir") {
-    log error $"($src) does not exist or is a directory. Skipping linking."
+  if not ($src | path exists) {
+    log error $"($src) does not exist. Skipping linking."
     return
   }
 
-  if (has-cmd trash) {
-    do -i { trash $dst }
-  } else {
-    rm -rf $dst
+  if (($src | path type) == "dir") {
+    log error $"($src) is a directory. Skipping linking."
+    return
   }
+
+  do -i { trash $dst }
   log info $"linking ($src) -> ($dst)"
   ln -sf $src $dst
 }
@@ -83,18 +84,11 @@ def --env bootstrap [] {
     "bin"
     ".local/bin"
     ".cargo/bin"
+    ".local/bin"
   ] | each {|p| path add ($env.HOME | path join $p) }
 }
 
-
-def "main fonts" [] {
-  log+ "Installing fonts"
-  brew install -q font-jetbrains-mono-nerd-font font-monaspace-nerd-font
-}
-
 def "main vscode install" [] {
-  main fonts
-
   if not (has-cmd code) {
     log+ "Installing vscode"
     brew install -q visual-studio-code
@@ -123,7 +117,10 @@ def "main vscode config" [] {
     }
   }
 
-  main stow "Code"
+  do -i {
+    log+ "Copying settings"
+    cp ~/.mac-config/vscode/settings.json $"($env.HOME)/Library/Application Support/Code/User/settings.json"
+  }
 }
 
 def "main vscode" [] {
@@ -143,7 +140,7 @@ def "main rust" [] {
   }
 
   log+ "Installing Rust"
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  http get https://sh.rustup.rs | sh -s -- -y
 }
 
 def "main zed" [] {
@@ -152,17 +149,105 @@ def "main zed" [] {
   main stow "zed"
 }
 
-def "main uv" [] {
-  log+ "Installing uv"
-  brew install -q uv
+def "main ghostty fix" [] {
+    let ghostty_config = $"($env.HOME)/Library/Application Support/com.mitchellh.ghostty/config.ghostty"
+
+    mkdir ($ghostty_config | path dirname)
+
+    'config-file = ~/.config/ghostty/config'
+    | save --force $ghostty_config
 }
 
 def "main ghostty" [] {
   log+ "Installing ghostty"
   brew install -q ghostty
-  main fonts
-  do -i { trash $"($env.HOME)/Library/Application Support/com.mitchellh.ghostty/config" }
+  do -i { main ghostty fix }
   main stow "ghostty"
+}
+
+def set-fish-as-default-shell [] {
+  if not (has-cmd fish) {
+    die "fish not found. Quitting."
+  }
+
+  let fish_path = (which fish | first | get path)
+
+  if (($env.SHELL? | default "") == $fish_path) {
+    log+ "fish is already the default shell."
+    return
+  }
+
+  if not ($fish_path in (open /etc/shells | lines)) {
+    log warning $"Adding ($fish_path) to /etc/shells."
+    try {
+      $"($fish_path)\n" | sudo tee -a /etc/shells | ignore
+    } catch {
+      log warning $"Failed to add ($fish_path) to /etc/shells."
+      return
+    }
+  } else {
+    log+ $"($fish_path) is already in /etc/shells."
+  }
+
+  log+ "Setting fish as default shell..."
+  try {
+    chsh -s $fish_path
+    log+ $"Default shell set to fish \(($fish_path)\). Re-login to apply."
+  } catch {
+    log warning $"Failed to set fish as default shell. Try running 'chsh -s ($fish_path)' manually."
+  }
+}
+
+def fish-config [] {
+  if not (has-cmd fish) {
+    die "fish not installed. Quitting."
+  }
+
+  set-fish-as-default-shell
+
+  let src = ($env.DOT_DIR | path join "fish/config.fish")
+  let dst = ($env.HOME | path join ".config/fish/config.fish")
+
+  if (($dst | path exists)
+    and (($dst | path type) == "symlink")
+    and ((readlink $dst) == $src)) {
+    log+ "fish config is already symlinked. Skipping."
+    return
+  }
+
+  mkdir ($dst | path dirname)
+  sln $src $dst
+}
+
+def "main shell" [] {
+  brew install -q ...[
+    bat
+    bottom
+    carapace
+    direnv
+    eza
+    fd
+    fish
+    font-monaspace-nerd-font
+    fzf
+    gh
+    jq
+    ripgrep
+    shellcheck
+    shfmt
+    starship
+    tealdeer
+    unar
+    unzip
+    xh
+    zellij
+    zip
+    zoxide
+    zstd
+  ]
+
+  fish-config
+  do -i { tldr --update }
 }
 
 def "main vp" [] {
@@ -172,7 +257,7 @@ def "main vp" [] {
   }
 
   log info "Installing vp"
-  curl -fsSL https://vite.plus | bash
+  http get https://vite.plus | bash
 
   log info "Installing node"
   ~/.vite-plus/bin/vp env install latest
@@ -182,7 +267,20 @@ def "main vp" [] {
 def "main apps" [] {
   log+ "Installing apps"
   brew install -q --cask obsidian telegram-desktop
-  brew install -q unar zip zstd
+}
+
+def "main ai" [] {
+  log+ "Installing codex, claude and opencode"
+  brew install ...[
+    antigravity
+    antigravity-cli
+    claude
+    claude-code
+    codex
+    codex-app
+    google-chrome
+    opencode
+  ]
 }
 
 let COMMANDS = {
@@ -190,16 +288,12 @@ let COMMANDS = {
     desc: "Install and configure ghostty"
     run: {|| main ghostty }
   }
-  uv: {
-    desc: "Install uv(Python)"
-    run: {|| main uv }
-  }
   cpp: {
     desc: "Install C++ tooling"
     run: {|| main cpp }
   }
   rust: {
-    desc: "Install Rust(rustup)"
+    desc: "Install Rust with rustup"
     run: {|| main rust }
   }
   vscode: {
@@ -210,9 +304,17 @@ let COMMANDS = {
     desc: "Install and configure Zed editor"
     run: {|| main zed }
   }
+  ai: {
+    desc: "Install ai apps: claude, codex, opencode"
+    run: {|| main ai }
+  }
   apps: {
     desc: "Install apps like telegram, obsidian"
     run: {|| main apps }
+  }
+  shell: {
+    desc: "fish as default + modern shell tools"
+    run: {|| main shell }
   }
   vp: {
     desc: "Install vp"
