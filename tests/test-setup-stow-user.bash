@@ -304,7 +304,6 @@ test_content_integrity_all_packages() {
   trap 'rm -rf "$home"' RETURN
 
   local packages=("ghostty" "fish" "zed" "zsh")
-  local all_ok=true
 
   for pkg in "${packages[@]}"; do
     run_stow "$home" "$pkg" >/dev/null
@@ -323,7 +322,6 @@ test_content_integrity_all_packages() {
 
     if [ ! -L "$link" ]; then
       fail "content integrity: $rel is not a symlink"
-      all_ok=false
       continue
     fi
 
@@ -335,7 +333,6 @@ test_content_integrity_all_packages() {
       pass "content integrity: $rel matches source"
     else
       fail "content integrity: $rel matches source"
-      all_ok=false
     fi
   done
 }
@@ -348,7 +345,7 @@ test_stow_nonexistent_package() {
   home=$(setup_home)
   trap 'rm -rf "$home"' RETURN
 
-  run_stow "$home" nonexistent-pkg 2>&1
+  run_stow "$home" nonexistent-pkg >/dev/null 2>&1 || true
 
   if [ ! -e "$home/.config/nonexistent-pkg" ]; then
     pass "nonexistent package creates no target directory"
@@ -373,14 +370,12 @@ test_stow_all_real_packages() {
     "zsh/zshrc"
   )
 
-  local all_ok=true
   local i=0
   for pkg in "${packages[@]}"; do
     (cd "$home" && HOME="$home" nu "$SETUP_NU" stow "$pkg" >/dev/null 2>&1)
     local rc=$?
     if [ $rc -ne 0 ]; then
       fail "stow $pkg exits without error (exit $rc)"
-      all_ok=false
     else
       pass "stow $pkg exits without error"
     fi
@@ -390,7 +385,6 @@ test_stow_all_real_packages() {
       pass "stow $pkg: $rel is linked"
     else
       fail "stow $pkg: $rel is linked (missing)"
-      all_ok=false
     fi
 
     i=$((i + 1))
@@ -406,13 +400,6 @@ test_only_files_linked_not_dirs() {
   trap 'rm -rf "${home:-}"' RETURN
 
   pkg_src="$home/.mac-config"
-  local has_subdir=false
-  for pkg in ghostty fish zed zsh; do
-    if find "$pkg_src/$pkg" -mindepth 1 -type d 2>/dev/null | head -1 | grep -q .; then
-      has_subdir=true
-      break
-    fi
-  done
 
   for pkg in ghostty fish zed zsh; do
     while IFS= read -r dir; do
