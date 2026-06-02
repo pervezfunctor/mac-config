@@ -18,52 +18,6 @@ die() {
 readonly NOT_A_MAC_ERR="Not a Mac. Quitting."
 [[ "$(uname)" == "Darwin" ]] || die "$NOT_A_MAC_ERR"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCRIPT_DIR
-
-# Keyboard modifier remapping
-log "Remapping keys: Caps Lock→Control, Option↔Command..."
-readonly KEY_REMAPPING_SCRIPT="$SCRIPT_DIR/apply-key-remapping"
-"$KEY_REMAPPING_SCRIPT" 2>/dev/null || {
-  die "Failed to remap keys via hidutil"
-}
-
-# Persist across reboots via LaunchAgent
-readonly LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
-readonly LAUNCH_AGENT_FILE="$LAUNCH_AGENT_DIR/com.local.KeyRemapping.plist"
-
-mkdir -p "$LAUNCH_AGENT_DIR"
-
-cat >"$LAUNCH_AGENT_FILE" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.local.KeyRemapping</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$KEY_REMAPPING_SCRIPT</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <false/>
-</dict>
-</plist>
-PLIST
-
-readonly LAUNCH_AGENT_LABEL="com.local.KeyRemapping"
-LAUNCHCTL_DOMAIN="gui/$(id -u)"
-readonly LAUNCHCTL_DOMAIN
-launchctl bootout "$LAUNCHCTL_DOMAIN" "$LAUNCH_AGENT_FILE" 2>/dev/null || true
-launchctl bootstrap "$LAUNCHCTL_DOMAIN" "$LAUNCH_AGENT_FILE" 2>/dev/null || {
-  warn "Failed to load key remapping LaunchAgent"
-}
-launchctl kickstart -k "$LAUNCHCTL_DOMAIN/$LAUNCH_AGENT_LABEL" 2>/dev/null || true
-
-log "Key remapping applied. Caps Lock→Control, Option↔Command. Will persist across reboots."
-
 # Finder: show hidden files and filename extensions
 log "Configuring Finder..."
 defaults write com.apple.finder AppleShowAllFiles -bool true 2>/dev/null || {
@@ -78,8 +32,6 @@ defaults write com.apple.finder FXDefaultSearchScope -string "SCcf" 2>/dev/null 
 defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true 2>/dev/null || {
   warn "Failed to disable .DS_Store files on network drives"
 }
-killall Finder 2>/dev/null || true
-log "Finder configured."
 
 # Disable natural scrolling for mouse
 log "Setting mouse scrolling to normal..."
@@ -134,42 +86,6 @@ if ! command -v displayplacer >/dev/null 2>&1; then
   }
 fi
 
-if command -v displayplacer >/dev/null 2>&1; then
-  dp_list="$(displayplacer list 2>/dev/null)" || {
-    warn "Failed to read display modes. Skipping display scaling."
-    dp_list=""
-  }
-
-  if [[ -n "$dp_list" ]]; then
-    screen_id="$(sed -n 's/.*Persistent screen id: *//p' <<<"$dp_list")"
-    current_res="$(sed -n 's/^  Resolution: *//p' <<<"$dp_list")"
-
-    if [[ -n "$screen_id" && -n "$current_res" ]]; then
-      modes_text="$(
-        sed -n '/Resolutions for rotation 0:/,/^$/p' <<<"$dp_list" |
-          grep "mode " |
-          grep "scaling:on" |
-          sed 's/.*mode \([0-9]*\): res:\([0-9]*x[0-9]*\).*/\1 \2/'
-      )" || modes_text=""
-
-      current_idx="$(grep -n "$current_res" <<<"$modes_text" | head -1 | cut -d: -f1)" || current_idx=""
-
-      if [[ -n "$current_idx" && "$current_idx" -gt 1 ]]; then
-        target_idx=$((current_idx - 1))
-        target_mode="$(sed -n "${target_idx}p" <<<"$modes_text" | awk '{print $1}')"
-        displayplacer "id:$screen_id modeId:$target_mode" 2>/dev/null || {
-          warn "Failed to set display scaling"
-        }
-        log "Display scaling applied."
-      elif [[ -n "$current_idx" ]]; then
-        log "Already at the smallest scaling. Skipping."
-      else
-        warn "Could not determine current display mode. Skipping."
-      fi
-    fi
-  fi
-fi
-
 # Dock: smallest size and enable magnify
 log "Setting Dock to smallest size with magnify..."
 defaults write com.apple.dock tilesize -int 16 2>/dev/null || {
@@ -184,21 +100,6 @@ defaults write com.apple.dock autohide -bool true 2>/dev/null || {
 defaults write com.apple.dock static-only -bool true 2>/dev/null || {
   warn "Failed to show only active apps in Dock"
 }
-killall Dock 2>/dev/null || true
-log "Dock configured."
-
-# Safari: enable developer menu
-log "Enabling Safari developer menu..."
-defaults write com.apple.Safari IncludeDevelopMenu -bool true 2>/dev/null || {
-  warn "Failed to enable Safari developer menu"
-}
-defaults write com.apple.Safari WebKitDeveloperExtrasEnabledPreferenceKey -bool true 2>/dev/null || {
-  warn "Failed to enable Safari WebKit developer extras"
-}
-defaults write -g WebKitDeveloperExtras -bool true 2>/dev/null || {
-  warn "Failed to enable global WebKit developer extras"
-}
-log "Safari developer menu enabled."
 
 # Text input: disable auto-correct
 log "Disabling auto-correct..."
@@ -222,11 +123,3 @@ defaults write -g PMPrintingExpandedStateForPrint2 -bool true 2>/dev/null || {
   warn "Failed to expand print dialogs v2"
 }
 log "Save and print dialogs configured."
-
-# Terminal: close window when shell exits
-log "Setting Terminal to close window when shell exits..."
-PROFILE=$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || echo "Basic")
-PLIST="$HOME/Library/Preferences/com.apple.Terminal.plist"
-/usr/libexec/PlistBuddy -c "Set :Window Settings:$PROFILE:shellExitAction 2" "$PLIST" 2>/dev/null ||
-  /usr/libexec/PlistBuddy -c "Add :Window Settings:$PROFILE:shellExitAction integer 2" "$PLIST"
-log "Terminal configured."
