@@ -87,7 +87,7 @@ zsh_setup() {
 }
 
 main() {
-  export PATH="/opt/homebrew/bin:$PATH"
+  export PATH="$HOME/.local/bin:$HOME/.mac-config/scripts:/opt/homebrew/bin:$PATH"
 
   [ "$(uname)" = "Darwin" ] || die "Not a Mac. Quitting."
 

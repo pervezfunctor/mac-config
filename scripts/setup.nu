@@ -77,7 +77,7 @@ def "main stow home" [package: string] {
 }
 
 def --env bootstrap [] {
-  path add $env.DOT_DIR
+  path add $env.DOT_DIR/scripts
   path add "/opt/homebrew/bin"
 
   [
