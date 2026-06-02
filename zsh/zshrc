@@ -1,0 +1,97 @@
+#! /usr/bin/env zsh
+
+has_cmd() {
+  command -v "$1" >&/dev/null
+}
+
+export EDITOR='zed --wait'
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+
+if [[ $- == *i* ]]; then
+  return
+fi
+
+HISTFILE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/history"
+mkdir -p "$(dirname "$HISTFILE")"
+HISTSIZE=50000
+
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_FIND_NO_DUPS
+setopt HIST_REDUCE_BLANKS
+setopt SHARE_HISTORY
+setopt INC_APPEND_HISTORY
+
+setopt AUTO_CD
+setopt GLOB_DOTS
+setopt NO_BEEP
+setopt EXTENDED_GLOB
+setopt INTERACTIVE_COMMENTS
+setopt APPEND_HISTORY
+
+autoload -Uz compinit && compinit
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
+zstyle ':completion:*:warnings' format '%F{red}-- no matches --%f'
+zstyle ':completion:*' squeeze-slashes true
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/compcache"
+
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+alias g='git'
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gp='git push'
+alias gl='git log --oneline -20'
+alias gd='git diff'
+alias gb='git branch'
+alias gco='git checkout'
+
+bindkey -e
+bindkey '^[[1;3C' forward-word
+bindkey '^[[1;3D' backward-word
+bindkey '^[[H' beginning-of-line
+bindkey '^[[F' end-of-line
+bindkey '^[[3~' delete-char
+bindkey '^[b' backward-word
+bindkey '^[f' forward-word
+
+if has_cmd starship; then
+  eval "$(starship init zsh)"
+else
+  setopt PROMPT_SUBST
+  PROMPT='%F{green}%~%f
+❯ '
+fi
+
+if has_cmd eza; then
+  alias ls='eza --icons --group-directories-first'
+  alias ll='eza -l --icons --group-directories-first'
+  alias la='eza -la --icons --group-directories-first'
+  alias lt='eza --tree --icons --group-directories-first'
+fi
+
+if has_cmd zoxide; then
+  eval "$(zoxide init zsh)"
+fi
+
+if has_cmd fzf; then
+  eval "$(fzf --zsh)"
+fi
+
+if has_cmd carapace; then
+  export CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'
+  source <(carapace _carapace)
+fi
+
+[[ -f "${ZDOTDIR:-$HOME}/.zshrc.local" ]] && source "${ZDOTDIR:-$HOME}/.zshrc.local"
