@@ -21,10 +21,6 @@ def is-mac [] {
     $nu.os-info.name == "macos"
 }
 
-def log+ [msg: string] {
-  log info $msg
-}
-
 def die [msg: string] {
   log critical $msg
 
@@ -50,30 +46,19 @@ def sln [src: string, dst: string] {
   ln -sf $src $dst
 }
 
-def stow-any [src: string, dst: string] {
-  let root = ($src | path expand)
+def "main stow" [package: string, --root: string] {
+  let stow_root = ($root | default ($env.HOME | path join ".config"))
+  let src = ($env.DOT_DIR | path join $package | path expand)
+  let target = ($stow_root | path join $package)
 
-  for f in (glob $"($root)/**/*" --no-dir) {
+  for f in (glob $"($src)/**/*" --no-dir) {
     let p = ($f | path expand)
-    let rel = ($p | path relative-to $root)
-    let target = ($dst | path join $rel)
-    let parent = ($target | path dirname)
-    if not ($parent | path exists) {
-      mkdir $parent
-    }
-    sln $p $target
+    let rel = ($p | path relative-to $src)
+    let dst = ($target | path join $rel)
+
+    mkdir ($dst | path dirname)
+    sln $p $dst
   }
-}
-
-def "main stow" [package: string] {
-  let root = (($env.DOT_DIR | path join $package) | path expand)
-  let target = ($env.HOME | path join ".config" $package)
-  stow-any $root $target
-}
-
-def "main stow home" [package: string] {
-  let root = (($env.DOT_DIR | path join $package) | path expand)
-  stow-any $root $env.HOME
 }
 
 def --env bootstrap [] {
@@ -90,13 +75,13 @@ def --env bootstrap [] {
 
 def "main vscode install" [] {
   if not (has-cmd code) {
-    log+ "Installing vscode"
+    log info "Installing vscode"
     brew install -q visual-studio-code
   }
 }
 
 def "main vscode config" [] {
-  log+ "Installing vscode extensions"
+  log info "Installing vscode extensions"
 
   [
     "Catppuccin.catppuccin-vsc"
@@ -118,7 +103,7 @@ def "main vscode config" [] {
   }
 
   do -i {
-    log+ "Copying settings"
+    log info "Copying settings"
     cp ~/.mac-config/vscode/settings.json $"($env.HOME)/Library/Application Support/Code/User/settings.json"
   }
 }
@@ -129,22 +114,22 @@ def "main vscode" [] {
 }
 
 def "main cpp" [] {
-  log+ "Installing C++ tools"
+  log info "Installing C++ tools"
   brew install -q make cmake boost catch2 ccache clang-format cpp-gsl ninja watchexec pkg-config
 }
 
 def "main rust" [] {
   if (has-cmd rustup) {
-    log+ "rustup is already installed"
+    log info "rustup is already installed"
     return
   }
 
-  log+ "Installing Rust"
+  log info "Installing Rust"
   http get https://sh.rustup.rs | sh -s -- -y
 }
 
 def "main zed" [] {
-  log+ "Installing Zed"
+  log info "Installing Zed"
   brew install -q zed
   main stow "zed"
 }
@@ -159,17 +144,17 @@ def "main ghostty fix" [] {
 }
 
 def "main ghostty" [] {
-  log+ "Installing ghostty"
+  log info "Installing ghostty"
   brew install -q ghostty
   do -i { main ghostty fix }
   main stow "ghostty"
 }
 
-def set-fish-as-default-shell [] {
+def "main fish shells" [] {
   let fish_path = (which fish | first | get path)
 
   if (($env.SHELL? | default "") == $fish_path) {
-    log+ "fish is already the default shell."
+    log info "fish is already the default shell."
     return
   }
 
@@ -182,40 +167,32 @@ def set-fish-as-default-shell [] {
       return
     }
   } else {
-    log+ $"($fish_path) is already in /etc/shells."
-  }
-
-  log+ "Setting fish as default shell..."
-  try {
-    chsh -s $fish_path
-    log+ $"Default shell set to fish \(($fish_path)\). Re-login to apply."
-  } catch {
-    log warning $"Failed to set fish as default shell. Try running 'chsh -s ($fish_path)' manually."
+    log info $"($fish_path) is already in /etc/shells."
   }
 }
 
-def fish-config [] {
-  if not (has-cmd fish) {
-    die "fish not installed. Quitting."
+def "main fish default" [] {
+  main fish shells
+
+  log info "Setting fish as default shell..."
+  try {
+    sudo chsh -s (which fish | first | get path) $env.USER
+    log info $"Default shell set to fish. Re-login to apply."
+  } catch {
+    log warning $"Failed to set fish as default shell. Try running 'chsh -s (which fish | first | get path)' manually."
   }
+}
 
-  set-fish-as-default-shell
+def "main fish" [] {
+  log info "Installing fish"
+  brew install -q fish
 
-  let src = ($env.DOT_DIR | path join "fish/config.fish")
-  let dst = ($env.HOME | path join ".config/fish/config.fish")
-
-  if (($dst | path exists)
-    and (($dst | path type) == "symlink")
-    and ((readlink $dst) == $src)) {
-    log+ "fish config is already symlinked. Skipping."
-    return
-  }
-
-  mkdir ($dst | path dirname)
-  sln $src $dst
+  main stow "fish"
+  main fish default
 }
 
 def "main shell" [] {
+  log info "Installing shell tools"
   brew install -q ...[
     bat
     bottom
@@ -223,7 +200,6 @@ def "main shell" [] {
     direnv
     eza
     fd
-    fish
     font-monaspace-nerd-font
     fzf
     gh
@@ -241,9 +217,8 @@ def "main shell" [] {
     zoxide
     zstd
   ]
-
-  fish-config
   do -i { tldr --update }
+  main fish
 }
 
 def "main vp" [] {
@@ -261,12 +236,13 @@ def "main vp" [] {
 }
 
 def "main apps" [] {
-  log+ "Installing apps"
+  log info "Installing apps"
   brew install -q --cask obsidian telegram-desktop
 }
 
 def "main ai" [] {
-  log+ "Installing codex, claude and opencode"
+  log info "Installing codex, claude and opencode"
+
   brew install ...[
     antigravity
     antigravity-cli
@@ -337,13 +313,20 @@ def select-install [] {
 def "main help" [] {
   print ""
   print "Usage:"
-  print "  setup.nu"
-  print "  setup.nu <command>"
+  print "  setup.nu                    Interactive selection"
+  print "  setup.nu <command>          Run a command"
   print ""
   print "Commands:"
 
   $COMMANDS | items {|k, v| print $"  ($k | fill -w 16) ($v.desc)" }
 
+  print ""
+  print "  stow             Symlink a package: main stow <package> [--root <dir>]"
+  print "  vscode install   Install vscode"
+  print "  vscode config    Copy vscode settings & install extensions"
+  print "  ghostty fix      Fix ghostty config path"
+  print "  fish shells      Add fish to /etc/shells"
+  print "  fish default     Set fish as the default shell"
   print ""
 }
 
