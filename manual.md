@@ -36,17 +36,12 @@ printf '%s\n' "$(command -v fish)" | sudo tee -a /etc/shells
 sudo chsh -s $(command -v fish) "$USER"
 ```
 
-Add starship to your shell config.
+Add starship to your shell config and homebrew to your PATH.
 
 ```fish
 mkdir -p ~/.config/fish
 touch ~/.config/fish/config.fish
 echo 'starship init fish | source' >> ~/.config/fish/config.fish
-```
-
-Make sure to add homebrew to your PATH in ~/.config/fish/config.fish
-
-```fish
 echo 'set -gx PATH "/opt/homebrew/bin:$PATH"' >> ~/.config/fish/config.fish
 ```
 
@@ -59,6 +54,3 @@ brew install ghostty visual-studio-code font-jetbrains-mono-nerd-font
 ```
 
 Use `Catppuccin Mocha` theme and `Jetbrains Mono Nerd Font` font in your terminal and vscode editor. Use `cmd+,` to open settings(both terminal and vscode).
-
-
-If this is too cumbersome, use my script to setup what you need from this repo`s [README](https://github.com/pervezfunctor/mac-config)
