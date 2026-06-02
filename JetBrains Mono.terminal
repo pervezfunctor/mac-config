@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Font</key>
+	<data>
+	YnBsaXN0MDDUAQIDBAUGBwpYJHZlcnNpb25ZJGFyY2hpdmVyVCR0b3BYJG9iamVjdHMS
+	AAGGoF8QD05TS2V5ZWRBcmNoaXZlctEICVRyb290gAGkCwwVFlUkbnVsbNQNDg8QERIT
+	FFZOU1NpemVYTlNmRmxhZ3NWTlNOYW1lViRjbGFzcyNALgAAAAAAABAQgAKAA18QGEpl
+	dEJyYWluc01vbm9ORk0tUmVndWxhctIXGBkaWiRjbGFzc25hbWVYJGNsYXNzZXNWTlNG
+	b250ohkbWE5TT2JqZWN0CBEaJCkyN0lMUVNYXmdud36FjpCSlK+0v8jP0gAAAAAAAAEB
+	AAAAAAAAABwAAAAAAAAAAAAAAAAAAADb
+	</data>
+	<key>FontAntialias</key>
+	<true/>
+	<key>FontHeightSpacing</key>
+	<real>1</real>
+	<key>FontWidthSpacing</key>
+	<integer>1</integer>
+	<key>ProfileCurrentVersion</key>
+	<real>2.0899999999999999</real>
+	<key>columnCount</key>
+	<integer>120</integer>
+	<key>name</key>
+	<string>JetBrains Mono</string>
+	<key>rowCount</key>
+	<integer>30</integer>
+	<key>shellExitAction</key>
+	<integer>2</integer>
+	<key>type</key>
+	<string>Window Settings</string>
+	<key>useOptionAsMetaKey</key>
+	<true/>
+</dict>
+</plist>
