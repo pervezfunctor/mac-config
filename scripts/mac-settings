@@ -97,9 +97,6 @@ defaults write com.apple.dock magnification -bool true 2>/dev/null || {
 defaults write com.apple.dock autohide -bool true 2>/dev/null || {
   warn "Failed to enable Dock auto-hide"
 }
-defaults write com.apple.dock static-only -bool true 2>/dev/null || {
-  warn "Failed to show only active apps in Dock"
-}
 
 # Text input: disable auto-correct
 log "Disabling auto-correct..."

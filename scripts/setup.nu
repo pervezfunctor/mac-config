@@ -246,12 +246,14 @@ def "main ai" [] {
   brew install ...[
     antigravity
     antigravity-cli
+    antigravity-ide
     claude
     claude-code
     codex
     codex-app
     google-chrome
     opencode
+    opencode-desktop
   ]
 }
 
