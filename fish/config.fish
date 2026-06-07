@@ -16,7 +16,7 @@ set -gx DOT_DIR $HOME/.mac-config
 
 fish_add_path --global --move \
   /opt/homebrew/bin \
-  $HOME/.antigravity-ide/antigravity-ide/bin
+  $HOME/.antigravity-ide/antigravity-ide/bin \
   $DOT_DIR/scripts \
   $HOME/bin \
   $HOME/.cargo/bin \
