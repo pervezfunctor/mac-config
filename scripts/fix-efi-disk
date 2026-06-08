@@ -1,4 +1,11 @@
-for vmid in 137; do
+#!/usr/bin/env bash
+
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <vmid>"
+    exit 1
+fi
+
+for vmid in "$1"; do
   conf="/etc/pve/qemu-server/${vmid}.conf"
 
   # Get zvol name
