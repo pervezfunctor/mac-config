@@ -16,10 +16,10 @@ RED='\033[0;31m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-log() { printf "${GREEN}✔${RESET} %s\n" "$*"; }
-warn() { printf "${YELLOW}${BOLD}⚠${RESET} %s\n" "$*" >&2; }
+log() { printf "${GREEN}✔${RESET} %s\n\n" "$*"; }
+warn() { printf "${YELLOW}${BOLD}⚠${RESET} %s\n\n" "$*" >&2; }
 die() {
-  printf "${RED}${BOLD}✖${RESET} %s\n" "$*" >&2
+  printf "${RED}${BOLD}✖${RESET} %s\n\n" "$*" >&2
   exit 1
 }
 
@@ -61,8 +61,6 @@ brew_install() {
   if has_cmd brew; then
     log "Updating brew..."
     brew update
-
-    log "Homebrew already installed. Skipping."
     return
   fi
 
@@ -74,7 +72,6 @@ brew_install() {
 brew_packages_install() {
   log "Installing homebrew packages..."
   brew install -q nushell font-jetbrains-mono-nerd-font uv
-
   log "Homebrew packages installed."
 }
 
