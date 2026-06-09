@@ -111,5 +111,3 @@ if has_cmd carapace; then
   export CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'
   source <(carapace _carapace)
 fi
-
-[[ -f "${ZDOTDIR:-$HOME}/.zshrc.local" ]] && source "${ZDOTDIR:-$HOME}/.zshrc.local"

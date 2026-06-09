@@ -47,7 +47,6 @@ if has_cmd carapace
   carapace _carapace | source
 end
 
-
 function fish_greeting
 end
 

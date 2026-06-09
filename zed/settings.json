@@ -19,7 +19,8 @@
       "type": "registry",
     },
   },
-  "vim_mode": true,
+
+  "vim_mode": false,
   "session": {
     "trust_all_worktrees": true,
   },
@@ -33,6 +34,7 @@
     "make": true,
     "neocmake": true,
     "nu": true,
+    "toml": true,
   },
 
   "tab_size": 2,
@@ -42,6 +44,11 @@
   "buffer_font_family": "JetBrainsMono Nerd Font Mono",
   "buffer_font_size": 15,
   "theme": {
+    "mode": "system",
+    "light": "Catppuccin Latte",
+    "dark": "Catppuccin Mocha",
+  },
+  "icon_theme": {
     "mode": "system",
     "light": "Catppuccin Latte",
     "dark": "Catppuccin Mocha",
