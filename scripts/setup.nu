@@ -3,7 +3,9 @@
 use std/log
 use std/util "path add"
 
-$env.DOT_DIR = ($env.HOME | path join ".mac-config")
+export-env {
+  $env.DOT_DIR = ($env.HOME | path join ".mac-config")
+}
 
 def has-cmd [cmd: string] {
   (which $cmd | is-not-empty)
@@ -191,6 +193,15 @@ def "main fish" [] {
   main fish default
 }
 
+def "main scroller" [] {
+  log info "Installing scroller for mac"
+  brew tap FelixKratz/formulae
+  brew tap BarutSRB/tap
+  brew trust --cask BarutSRB/tap
+  brew trust --formula felixkratz/formulae/borders
+  brew install -q omniwm skhd borders
+}
+
 def "main shell" [] {
   log info "Installing shell tools"
   brew install -q ...[
@@ -293,6 +304,10 @@ let COMMANDS = {
   vp: {
     desc: "Install vp"
     run: {|| main vp }
+  }
+  scroller: {
+    desc: "Install omniwm and borders for niri like scroller"
+    run: {|| main scroller }
   }
 }
 
