@@ -76,8 +76,10 @@ brew_packages_install() {
 }
 
 zsh_setup() {
-  log "Trashing zsh config..."
-  trash ~/.zshrc
+  if [ -e ~/.zshrc ]; then
+    log "Trashing zsh config..."
+    trash ~/.zshrc
+  fi
 
   log "Symlinking zsh config..."
   ln -sf "${DOT_DIR}/zsh/zshrc" ~/.zshrc
