@@ -195,11 +195,9 @@ def "main fish" [] {
 
 def "main scroller" [] {
   log info "Installing scroller for mac"
-  brew tap FelixKratz/formulae
   brew tap BarutSRB/tap
-  brew trust --cask BarutSRB/tap
-  brew trust --formula felixkratz/formulae/borders
-  brew install -q omniwm skhd borders
+  brew trust --cask barutsrb/tap/omniwm
+  brew install -q omniwm
 }
 
 def "main shell" [] {
