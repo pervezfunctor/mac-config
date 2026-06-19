@@ -71,7 +71,7 @@ brew_install() {
 
 brew_packages_install() {
   log "Installing homebrew packages..."
-  brew install -q nushell font-jetbrains-mono-nerd-font uv
+  brew install -y -q nushell font-jetbrains-mono-nerd-font uv
   log "Homebrew packages installed."
 }
 

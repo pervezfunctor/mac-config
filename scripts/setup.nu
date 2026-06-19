@@ -78,7 +78,7 @@ def --env bootstrap [] {
 def "main vscode install" [] {
   if not (has-cmd code) {
     log info "Installing vscode"
-    brew install -q visual-studio-code
+    brew install -y -q visual-studio-code
   }
 }
 
@@ -117,7 +117,7 @@ def "main vscode" [] {
 
 def "main cpp" [] {
   log info "Installing C++ tools"
-  brew install -q make cmake boost catch2 ccache clang-format cpp-gsl ninja watchexec pkg-config
+  brew install -y -q make cmake boost catch2 ccache clang-format cpp-gsl ninja watchexec pkg-config
 }
 
 def "main rust" [] {
@@ -132,7 +132,7 @@ def "main rust" [] {
 
 def "main zed" [] {
   log info "Installing Zed"
-  brew install -q zed
+  brew install -y -q zed
   main stow "zed"
 }
 
@@ -147,7 +147,7 @@ def "main ghostty fix" [] {
 
 def "main ghostty" [] {
   log info "Installing ghostty"
-  brew install -q ghostty
+  brew install -y -q ghostty
   do -i { main ghostty fix }
   main stow "ghostty"
 }
@@ -187,7 +187,7 @@ def "main fish default" [] {
 
 def "main fish" [] {
   log info "Installing fish"
-  brew install -q fish
+  brew install -y -q fish
 
   main stow "fish"
   main fish default
@@ -197,12 +197,12 @@ def "main scroller" [] {
   log info "Installing scroller for mac"
   brew tap BarutSRB/tap
   brew trust --cask barutsrb/tap/omniwm
-  brew install -q omniwm
+  brew install -y -q omniwm
 }
 
 def "main shell" [] {
   log info "Installing shell tools"
-  brew install -q ...[
+  brew install -y -q ...[
     bat
     bottom
     carapace
@@ -246,13 +246,13 @@ def "main vp" [] {
 
 def "main apps" [] {
   log info "Installing apps"
-  brew install -q --cask obsidian telegram-desktop
+  brew install -y -q --cask obsidian telegram-desktop
 }
 
 def "main ai" [] {
   log info "Installing codex, claude and opencode"
 
-  brew install ...[
+  brew install -y -q ...[
     antigravity
     antigravity-cli
     antigravity-ide
@@ -267,21 +267,13 @@ def "main ai" [] {
 }
 
 let COMMANDS = {
+  shell: {
+    desc: "fish as default + modern shell tools"
+    run: {|| main shell }
+  }
   ghostty: {
     desc: "Install and configure ghostty"
     run: {|| main ghostty }
-  }
-  cpp: {
-    desc: "Install C++ tooling"
-    run: {|| main cpp }
-  }
-  rust: {
-    desc: "Install Rust with rustup"
-    run: {|| main rust }
-  }
-  vscode: {
-    desc: "Install vscode and extensions"
-    run: {|| main vscode }
   }
   zed: {
     desc: "Install and configure Zed editor"
@@ -291,13 +283,21 @@ let COMMANDS = {
     desc: "Install ai apps: claude, codex, opencode"
     run: {|| main ai }
   }
+  vscode: {
+    desc: "Install vscode and extensions"
+    run: {|| main vscode }
+  }
+  cpp: {
+    desc: "Install C++ tooling"
+    run: {|| main cpp }
+  }
+  rust: {
+    desc: "Install Rust with rustup"
+    run: {|| main rust }
+  }
   apps: {
     desc: "Install apps like telegram, obsidian"
     run: {|| main apps }
-  }
-  shell: {
-    desc: "fish as default + modern shell tools"
-    run: {|| main shell }
   }
   vp: {
     desc: "Install vp"
