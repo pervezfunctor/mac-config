@@ -61,6 +61,7 @@ brew_install() {
   if has_cmd brew; then
     log "Updating brew..."
     brew update
+    brew upgrade -y
     return
   fi
 
@@ -99,7 +100,7 @@ main() {
   zsh_setup
 
   echo ""
-  log "mac setup complete!"
+  log "mac setup complete! Use 'setup.nu' interactive script for further setup."
   echo ""
 }
 
