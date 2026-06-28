@@ -1,0 +1,822 @@
+#!/usr/bin/env bash
+#
+# efi-backup — manage OpenCore Hackintosh EFI backups with Git.
+#
+# Design summary (see header of repo README/usage for the why):
+#   EFI partition --rsync--> Git working tree (REPO/EFI) --commit--> history
+#   Restores never touch the working tree: a chosen commit is extracted via
+#   `git archive` into a temp dir, verified, then rsynced onto the mounted EFI.
+#
+# Compatibility note: this script intentionally avoids bash 4+ features
+# (associative arrays, `declare -n`, `${var,,}`, `mapfile`) so it runs on the
+# bash 3.2 that ships with macOS. Empty-array expansions are guarded for the
+# same reason under `set -u`.
+
+set -Eeuo pipefail
+
+###############################################################################
+# Globals / configuration
+###############################################################################
+
+# Repository holds the EFI snapshot plus .git history. Override allowed so users
+# can keep backups on an external volume.
+: "${EFI_BACKUP_REPO:=}"
+REPO="${EFI_BACKUP_REPO:-$HOME/Hackintosh}"
+
+# Persist the last user-selected EFI identifier so daily workflows are one-shot.
+CACHE_DIR="$HOME/.cache/efi-backup"
+LAST_EFI_FILE="$CACHE_DIR/last_efi"
+
+# Temp directories created during a run are tracked here and torn down on EXIT.
+# This guarantees we never leak extracted EFI trees, even on Ctrl-C or errors.
+TEMP_DIRS=()
+
+# Commit representing on-disk EFI state right before a restore (for rollback).
+BACKUP_COMMIT=""
+
+# Resolved EFI identifier / mount point from the most recent resolve_efi call,
+# so a single command (e.g. restore) does not prompt or sudo twice.
+EFI_ID=""
+EFI_MP=""
+
+###############################################################################
+# Output helpers — colors auto-disable when stdout is not a tty (so logs, pipes
+# and redirects stay clean) or when NO_COLOR is set (https://no-color.org/).
+###############################################################################
+
+if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
+    C_RED=$'\033[31m'
+    C_GRN=$'\033[32m'
+    C_YEL=$'\033[33m'
+    C_BLU=$'\033[34m'
+    C_BLD=$'\033[1m'
+    C_RST=$'\033[0m'
+else
+    C_RED=""; C_GRN=""; C_YEL=""; C_BLU=""; C_BLD=""; C_RST=""
+fi
+
+# All status/diagnostic helpers write to stderr by convention: this keeps stdout
+# reserved for data, so command/process substitution (e.g. capturing an EFI
+# identifier) never accidentally captures progress messages, and specific error
+# messages always reach the user instead of being swallowed.
+err()  { printf '%serror%s: %s\n' "$C_RED" "$C_RST" "$*" >&2; }
+warn() { printf '%swarning%s: %s\n' "$C_YEL" "$C_RST" "$*" >&2; }
+ok()   { printf '%s%s%s\n' "$C_GRN" "$*" "$C_RST" >&2; }
+info() { printf '%s%s%s\n' "$C_BLU" "$*" "$C_RST" >&2; }
+die()  { err "$*"; exit 1; }
+
+###############################################################################
+# Cleanup / signal handling
+###############################################################################
+
+make_temp_dir() {
+    # mktemp prefix lets `prune` find stragglers from crashed runs reliably.
+    local d
+    d="$(mktemp -d "${TMPDIR:-/tmp}/efi-backup.XXXXXX")"
+    TEMP_DIRS+=("$d")
+    printf '%s\n' "$d"
+}
+
+cleanup() {
+    # Guard the expansion: bash 3.2 + set -u balks at expanding an empty array.
+    if ((${#TEMP_DIRS[@]})); then
+        rm -rf "${TEMP_DIRS[@]}"
+    fi
+}
+trap cleanup EXIT
+
+on_signal() {
+    # A friendly message plus rely on the EXIT trap to remove temp dirs.
+    warn "interrupted"
+    exit 130
+}
+trap on_signal INT TERM
+
+###############################################################################
+# Dependency handling
+###############################################################################
+
+# Declared once so `doctor` and the preflight check share the same source of
+# truth. Order is irrelevant.
+REQUIRED_CMDS=(git rsync fzf diskutil mktemp tar)
+
+check_dependencies() {
+    local missing=() cmd
+    # Collect names first so the final message lists exactly what's absent
+    # (not whatever happened to be the last array element) and stays generic
+    # rather than assuming any particular package manager.
+    for cmd in "${REQUIRED_CMDS[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            err "missing required command: $cmd"
+            missing+=("$cmd")
+        fi
+    done
+    if ((${#missing[@]})); then
+        die "install the missing dependencies and retry: ${missing[*]}"
+    fi
+}
+
+###############################################################################
+# Git helpers
+###############################################################################
+
+in_repo() { git -C "$REPO" "$@"; }
+
+is_git_repo() {
+    git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1
+}
+
+has_commits() {
+    git -C "$REPO" rev-parse --verify HEAD >/dev/null 2>&1
+}
+
+require_repo() {
+    if ! is_git_repo; then
+        die "repository not found at '$REPO' — run \`efi-backup init\` first."
+    fi
+    if ! has_commits; then
+        die "repository at '$REPO' has no commits — run \`efi-backup backup\` first."
+    fi
+}
+
+ensure_repo_writable() {
+    # Detect read-only volumes (e.g. repo on a mistakenly mounted RO disk)
+    # before we attempt writes and fail mid-operation.
+    if [[ ! -w "$REPO" ]]; then
+        die "repository '$REPO' is not writable."
+    fi
+}
+
+###############################################################################
+# EFI detection & mounting
+###############################################################################
+
+# Extract a single field from `diskutil info`. We strip everything up to the
+# first colon (and following whitespace) so spacing differences across macOS
+# versions don't break parsing.
+_diskutil_field() {
+    local id="$1" field="$2"
+    diskutil info "$id" 2>/dev/null \
+        | awk -v f="$field" 'index($0, f) {
+               sub(/^[^:]*:[[:space:]]*/, "")
+               print
+               exit
+           }'
+}
+
+# List EFI partition identifiers using diskutil. We key on the *TYPE* column
+# being "EFI" (the NAME can legitimately be empty on some setups), and take the
+# final whitespace-delimited token which is always the identifier.
+list_efi_identifiers() {
+    diskutil list 2>/dev/null \
+        | awk '/^[[:space:]]*[0-9]+:[[:space:]]+EFI([[:space:]]|$)/ { print $NF }'
+}
+
+remember_efi() {
+    local id="$1"
+    mkdir -p "$CACHE_DIR"
+    printf '%s\n' "$id" > "$LAST_EFI_FILE"
+}
+
+recall_efi() {
+    [[ -f "$LAST_EFI_FILE" ]] && cat "$LAST_EFI_FILE" || true
+}
+
+# Build a single tab-separated display row for fzf: identifier, name, size,
+# mounted flag. Tabs make field extraction trivial regardless of name spacing.
+_partition_row() {
+    local id="$1"
+    local name size mounted
+    name="$(_diskutil_field "$id" "Volume Name")"
+    size="$(_diskutil_field "$id" "Disk Size")"
+    mounted="$(_diskutil_field "$id" "Mounted")"
+    name="${name:-<no name>}"
+    size="${size:-unknown}"
+    mounted="${mounted:-No}"
+    printf '%s\t%s\t%s\t%s\n' "$id" "$name" "$size" "${mounted%% *}"
+}
+
+# Resolve an EFI identifier. If a remembered one still exists, reuse it without
+# prompting. Otherwise pick the only candidate, or ask via fzf when ambiguous.
+# Args: $1 = "interactive" to allow an fzf prompt.
+locate_efi() {
+    local interactive="${1:-0}"
+    local cached candidates candidate rows choice
+
+    cached="$(recall_efi || true)"
+    if [[ -n "$cached" ]] && diskutil info "$cached" >/dev/null 2>&1; then
+        printf '%s\n' "$cached"
+        return 0
+    fi
+
+    # Collect candidates into an array so we can count them precisely.
+    candidates=()
+    while IFS= read -r candidate; do
+        [[ -n "$candidate" ]] && candidates+=("$candidate")
+    done < <(list_efi_identifiers)
+
+    if ((${#candidates[@]} == 0)); then
+        return 1
+    fi
+
+    if ((${#candidates[@]} == 1)); then
+        printf '%s\n' "${candidates[0]}"
+        remember_efi "${candidates[0]}"
+        return 0
+    fi
+
+    if [[ "$interactive" != "1" ]]; then
+        # Non-interactive callers (status) shouldn't block; bail and let them
+        # decide how to report "multiple EFI partitions".
+        return 2
+    fi
+
+    rows=()
+    for candidate in "${candidates[@]}"; do
+        rows+=("$(_partition_row "$candidate")")
+    done
+
+    choice="$(printf '%s\n' "${rows[@]}" \
+        | fzf --delimiter=$'\t' --with-nth=2,3,4 \
+              --header=$'Select EFI partition\n(TAB fields: name, size, mounted)' \
+              --prompt='EFI ❯ ' || true)"
+
+    [[ -n "$choice" ]] || return 1
+    printf '%s\n' "${choice%%$'\t'*}"
+    remember_efi "${choice%%$'\t'*}"
+}
+
+# Ensure the EFI partition for $1 is mounted; print the mount point.
+# macOS sometimes refuses a plain mount (ownership/flags), so fall back to sudo.
+mount_efi() {
+    local id="$1" mp
+    mp="$(_diskutil_field "$id" "Mount Point")"
+
+    if [[ -n "$mp" ]] && [[ -d "$mp" ]]; then
+        printf '%s\n' "$mp"
+        return 0
+    fi
+
+    info "mounting $id ..."
+    if ! diskutil mount "$id" >/dev/null 2>&1; then
+        warn "plain mount failed; retrying with sudo"
+        sudo diskutil mount "$id" >/dev/null
+    fi
+
+    mp="$(_diskutil_field "$id" "Mount Point")"
+    [[ -n "$mp" ]] && [[ -d "$mp" ]] || die "failed to mount $id"
+    printf '%s\n' "$mp"
+}
+
+# Resolve *and* mount the EFI, printing both identifier and mount point.
+# Uses a literal newline separator so callers can read two distinct values.
+resolve_efi() {
+    local interactive="${1:-1}" id mp
+    id="$(locate_efi "$interactive")" || {
+        local rc=$?
+        if ((rc == 2)); then
+            die "multiple EFI partitions found; run this command interactively to choose."
+        fi
+        die "no EFI partition detected."
+    }
+    mp="$(mount_efi "$id")"
+    printf '%s\n%s\n' "$id" "$mp"
+}
+
+###############################################################################
+# EFI validation
+###############################################################################
+
+# Verify a directory looks like a real OpenCore EFI layout. Returns non-zero
+# (and lists what is missing) so callers can branch before destructive steps.
+verify_efi() {
+    local dir="$1"
+    local rc=0 item
+
+    for item in "BOOT/BOOTx64.efi" "OC/OpenCore.efi" "OC/config.plist"; do
+        if [[ ! -f "$dir/$item" ]]; then
+            err "missing required file: $item"
+            rc=1
+        fi
+    done
+
+    for item in "OC/Drivers" "OC/Kexts" "OC/ACPI"; do
+        if [[ ! -d "$dir/$item" ]]; then
+            err "missing required directory: $item"
+            rc=1
+        fi
+    done
+
+    return $rc
+}
+
+###############################################################################
+# Core operations
+###############################################################################
+
+GITIGNORE_CONTENTS=".DS_Store
+.Trashes
+.Spotlight-V100
+.fseventsd"
+
+# Build rsync exclude arguments. Falls back to the built-in list when .gitignore
+# is missing so callers never crash on an opaque rsync error (H3).
+rsync_exclude_args() {
+    if [[ -f "$REPO/.gitignore" ]]; then
+        printf '%s\n' "--exclude-from=$REPO/.gitignore"
+    else
+        printf '%s\n' --exclude=.DS_Store --exclude=.Trashes \
+                      --exclude=.Spotlight-V100 --exclude=.fseventsd
+    fi
+}
+
+# Shared rsync invocation. Excludes are driven by .gitignore so the two views
+# (filesystem snapshot vs. tracked content) always agree.
+rsync_efi() {
+    local src="$1" dst="$2"
+    # shellcheck disable=SC2046 # intentional word-splitting of exclude flags
+    rsync -a --delete $(rsync_exclude_args) "$src" "$dst"
+}
+
+# Perform a backup. Echoes status; sets BACKUP_COMMIT to the resulting HEAD so
+# the restore flow can use it for rollback regardless of whether we committed.
+# Also exports EFI_ID/EFI_MP so callers that already backed up needn't resolve
+# (and re-prompt / re-sudo) a second time.
+do_backup() {
+    local stamp msg
+    {
+        read -r EFI_ID
+        read -r EFI_MP
+    } < <(resolve_efi 1)
+
+    if [[ ! -d "$EFI_MP/EFI" ]]; then
+        die "mounted EFI at '$EFI_MP' has no EFI/ directory — refusing to back up."
+    fi
+
+    mkdir -p "$REPO/EFI"
+    info "syncing $EFI_MP/EFI -> $REPO/EFI"
+    rsync_efi "$EFI_MP/EFI/" "$REPO/EFI/"
+
+    in_repo add -A
+
+    if in_repo diff --cached --quiet; then
+        ok "No changes."
+    else
+        stamp="$(date '+%Y-%m-%d %H:%M:%S')"
+        msg="EFI backup $stamp"
+        in_repo commit -m "$msg" >/dev/null
+        ok "committed: $msg"
+    fi
+
+    BACKUP_COMMIT="$(in_repo rev-parse HEAD)"
+}
+
+###############################################################################
+# Commands
+###############################################################################
+
+# Ensure every required ignore rule is present in .gitignore, preserving any
+# custom entries the user added. Idempotent and non-destructive.
+ensure_gitignore() {
+    local entry
+    touch "$REPO/.gitignore"
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        # -F (fixed), -x (whole line) so patterns with special chars match literally.
+        if ! grep -qxF -- "$entry" "$REPO/.gitignore" 2>/dev/null; then
+            printf '%s\n' "$entry" >> "$REPO/.gitignore"
+        fi
+    done <<< "$GITIGNORE_CONTENTS"
+}
+
+cmd_init() {
+    mkdir -p "$REPO"
+    ensure_repo_writable
+
+    if ! is_git_repo; then
+        info "initializing git repository at $REPO"
+        git init -q "$REPO"
+    fi
+
+    ensure_gitignore
+
+    if ! has_commits; then
+        in_repo add -A
+        # Only commit when there is something staged; otherwise let a real git
+        # failure surface instead of being swallowed by a blanket `|| true`.
+        if in_repo diff --cached --quiet; then
+            in_repo commit -q --allow-empty -m "efi-backup: initial commit"
+        else
+            in_repo commit -q -m "efi-backup: initial commit"
+        fi
+        ok "created initial commit."
+    else
+        ok "repository already initialized."
+    fi
+    ok "repository ready at $REPO"
+}
+
+cmd_backup() {
+    require_repo
+    ensure_repo_writable
+    do_backup
+}
+
+cmd_restore() {
+    require_repo
+    ensure_repo_writable
+
+    info "creating a safety backup before restore ..."
+    # do_backup resolves+mounts EFI and leaves EFI_ID/EFI_MP populated, so we
+    # reuse those here instead of resolving (and re-sudoing) a second time.
+    do_backup
+
+    local preview selection commit tmp
+    # Embed the (safely-quoted) repo path into the preview command because fzf
+    # runs previews in a fresh shell that doesn't inherit our variables.
+    preview="git -C $(printf '%q' "$REPO") show --color {1}"
+
+    selection="$(in_repo log --graph --decorate --date=short \
+                    --pretty=format:'%H %h %ad%d %s' \
+                | fzf --ansi --preview="$preview" \
+                      --header='Select commit to restore (preview: git show)' \
+                      --prompt='commit ❯ ' || true)"
+
+    [[ -n "$selection" ]] || die "no commit selected."
+    commit="${selection%% *}"
+
+    # Extract the selected commit into an isolated temp tree — never touch the
+    # working tree, so a cancelled restore cannot corrupt the repo.
+    tmp="$(make_temp_dir)"
+    info "extracting commit $commit ..."
+    in_repo archive --format=tar "$commit" | tar -x -C "$tmp"
+
+    if [[ ! -d "$tmp/EFI" ]]; then
+        die "commit $commit does not contain an EFI/ directory."
+    fi
+
+    if ! verify_efi "$tmp/EFI"; then
+        die "extracted EFI failed validation — aborting restore."
+    fi
+
+    printf 'Restore commit %s onto %s? [y/N] ' "$commit" "$EFI_ID"
+    local reply
+    read -r reply
+    if [[ "${reply:-}" != [yY] ]]; then
+        ok "aborted by user; EFI untouched."
+        return 0
+    fi
+
+    info "restoring $tmp/EFI -> $EFI_MP/EFI (--delete)"
+    if ! rsync_efi "$tmp/EFI/" "$EFI_MP/EFI/"; then
+        err "rsync failed during restore."
+        rollback_efi "$EFI_ID" "$EFI_MP"
+        die "restore failed; attempted rollback."
+    fi
+
+    # Post-restore verification is mandatory: a half-written EFI is worse than
+    # the original, so we roll back automatically if anything looks off.
+    if ! verify_efi "$EFI_MP/EFI"; then
+        err "post-restore verification failed."
+        rollback_efi "$EFI_ID" "$EFI_MP"
+        die "verification failed; rolled back to pre-restore state."
+    fi
+
+    ok "restored commit $commit onto $EFI_ID successfully."
+}
+
+# Re-apply the on-disk state captured just before the restore (BACKUP_COMMIT).
+# Used both for user-triggered safety and automatic failure recovery.
+rollback_efi() {
+    local id="$1" mp="$2" tmp
+    [[ -n "$BACKUP_COMMIT" ]] || return 0
+    warn "rolling back $id to $BACKUP_COMMIT ..."
+    tmp="$(make_temp_dir)"
+    in_repo archive --format=tar "$BACKUP_COMMIT" | tar -x -C "$tmp"
+    # If the rollback write itself fails we cannot safely continue, but we must
+    # not silently lose the safety snapshot: surface the commit hash so the user
+    # can recover EFI manually from the repository.
+    if ! rsync_efi "$tmp/EFI/" "$mp/EFI/"; then
+        err "rollback rsync failed — EFI may be in a partial state."
+        err "recover manually: git -C $(printf '%q' "$REPO") archive $BACKUP_COMMIT | tar -x"
+        die "rollback failed (safety commit $BACKUP_COMMIT retained)."
+    fi
+    if ! verify_efi "$mp/EFI"; then
+        err "rollback verification failed — EFI may be damaged."
+        err "safety commit retained for manual recovery: $BACKUP_COMMIT"
+        die "rollback verification failed."
+    fi
+    ok "rollback complete."
+}
+
+cmd_list() {
+    require_repo
+    in_repo log --graph --decorate --date=short \
+        --pretty=format:'%C(auto)%h%d %ad %s' \
+        --all
+    printf '\n'
+}
+
+cmd_tag() {
+    require_repo
+    local name="${1:-}"
+    [[ -n "$name" ]] || die "usage: efi-backup tag NAME"
+    in_repo tag -a "$name" -m "efi-backup tag: $name"
+    ok "created tag $name at $(in_repo rev-parse --short HEAD)"
+}
+
+cmd_tags() {
+    require_repo
+    in_repo tag --sort=-creatordate
+}
+
+cmd_status() {
+    require_repo
+    local branch latest dirty count latest_tag efi_block
+    branch="$(in_repo rev-parse --abbrev-ref HEAD 2>/dev/null || echo '(detached)')"
+    latest="$(in_repo rev-parse --short HEAD 2>/dev/null || echo '(none)')"
+
+    # `git describe` returns non-zero when no tags exist; that is expected.
+    latest_tag="$(in_repo describe --tags --abbrev=0 2>/dev/null || echo '(none)')"
+
+    if in_repo diff --quiet HEAD && in_repo diff --cached --quiet; then
+        dirty="no"
+    else
+        dirty="yes"
+    fi
+
+    count="$(in_repo rev-list --count HEAD 2>/dev/null || echo 0)"
+
+    # Status is informational and must not hard-fail on EFI detection problems;
+    # `|| true` keeps it going while resolve_efi's specific message reaches the
+    # user via stderr (no longer swallowed by 2>/dev/null).
+    efi_block="$(resolve_efi 0 || true)"
+    local efi_id="(not detected)" efi_mp="(not mounted)"
+    if [[ -n "$efi_block" ]]; then
+        efi_id="$(printf '%s' "$efi_block" | sed -n '1p')"
+        efi_mp="$(printf '%s' "$efi_block" | sed -n '2p')"
+    fi
+
+    printf '%sRepository%s      %s\n' "$C_BLD" "$C_RST" "$REPO"
+    printf '%sBranch%s          %s\n' "$C_BLD" "$C_RST" "$branch"
+    printf '%sLatest commit%s   %s\n' "$C_BLD" "$C_RST" "$latest"
+    printf '%sCommits%s         %s\n' "$C_BLD" "$C_RST" "$count"
+    printf '%sLatest tag%s      %s\n' "$C_BLD" "$C_RST" "$latest_tag"
+    printf '%sWorking tree%s    %s\n' "$C_BLD" "$C_RST" "$dirty"
+    printf '%sEFI partition%s   %s\n' "$C_BLD" "$C_RST" "$efi_id"
+    printf '%sEFI mount point%s %s\n' "$C_BLD" "$C_RST" "$efi_mp"
+}
+
+cmd_verify() {
+    require_repo
+    local efi_block id mp
+    # resolve_efi prints the specific reason for failure to stderr before
+    # exiting its subshell; we just propagate the non-zero status.
+    efi_block="$(resolve_efi 0)" || exit 1
+    id="$(printf '%s' "$efi_block" | sed -n '1p')"
+    mp="$(printf '%s' "$efi_block" | sed -n '2p')"
+
+    if verify_efi "$mp/EFI"; then
+        ok "EFI on $id ($mp) is valid."
+        return 0
+    fi
+    die "EFI on $id ($mp) is invalid."
+}
+
+cmd_diff() {
+    require_repo
+    local efi_block mp
+    # Read-only command; use non-interactive resolution for consistency with
+    # status/verify, surfacing the specific error if it fails.
+    efi_block="$(resolve_efi 0)" || exit 1
+    mp="$(printf '%s' "$efi_block" | sed -n '2p')"
+
+    info "diff: mounted $mp/EFI  <->  repo $REPO/EFI"
+    # Dry-run itemize shows what *would* change without writing anything; the
+    # comparison direction (mount -> repo) matches the backup direction. Surface
+    # rsync errors instead of hiding them with `|| true`.
+    # shellcheck disable=SC2046 # intentional word-splitting of exclude flags
+    rsync -a -n -i --delete $(rsync_exclude_args) "$mp/EFI/" "$REPO/EFI/"
+}
+
+cmd_doctor() {
+    local problems=0 cmd
+
+    info "dependencies"
+    for cmd in "${REQUIRED_CMDS[@]}"; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            printf '  [ok]   %s\n' "$cmd"
+        else
+            printf '  [FAIL] %s (missing)\n' "$cmd"
+            problems=1
+        fi
+    done
+
+    info "git repository"
+    if is_git_repo; then
+        printf '  [ok]   %s\n' "$REPO"
+    else
+        printf '  [FAIL] no git repository at %s\n' "$REPO"
+        problems=1
+    fi
+
+    info "repository permissions"
+    if [[ -w "$REPO" ]]; then
+        printf '  [ok]   writable\n'
+    else
+        printf '  [FAIL] %s is not writable\n' "$REPO"
+        problems=1
+    fi
+
+    info "EFI partition detection"
+    local ids candidate
+    ids="$(list_efi_identifiers || true)"
+    if [[ -z "$ids" ]]; then
+        printf '  [FAIL] no EFI partition found\n'
+        problems=1
+    else
+        while IFS= read -r candidate; do
+            [[ -n "$candidate" ]] && printf '  [ok]   %s\n' "$candidate"
+        done <<< "$ids"
+    fi
+
+    info "EFI OpenCore layout (first mountable candidate)"
+    local first
+    first="$(printf '%s\n' "$ids" | sed -n '1p')"
+    if [[ -n "$first" ]]; then
+        local mp
+        mp="$(mount_efi "$first")" || {
+            printf '  [FAIL] could not mount %s\n' "$first"
+            problems=1
+            mp=""
+        }
+        if [[ -n "$mp" ]]; then
+            if [[ -d "$mp/EFI" ]] && verify_efi "$mp/EFI" >/dev/null 2>&1; then
+                printf '  [ok]   valid OpenCore EFI on %s\n' "$first"
+            else
+                printf '  [FAIL] %s/EFI is missing required OpenCore files\n' "$first"
+                problems=1
+            fi
+        fi
+    fi
+
+    info "diskutil access"
+    if diskutil list >/dev/null 2>&1; then
+        printf '  [ok]   diskutil responsive\n'
+    else
+        printf '  [FAIL] diskutil not usable\n'
+        problems=1
+    fi
+
+    if ((problems)); then
+        die "doctor reported problems."
+    fi
+    ok "all checks passed."
+}
+
+cmd_gc() {
+    require_repo
+    info "running git gc"
+    in_repo gc --quiet
+    ok "garbage collection complete."
+}
+
+cmd_prune() {
+    local base="${TMPDIR:-/tmp}"
+    # Match only our own prefix to avoid touching unrelated temp directories.
+    info "removing stale efi-backup temp directories under $base"
+    find "$base" -maxdepth 1 -name 'efi-backup.*' -type d -print \
+        -exec rm -rf {} + 2>/dev/null || true
+    ok "prune complete."
+}
+
+cmd_export() {
+    require_repo
+    local file="${1:-}"
+    [[ -n "$file" ]] || die "usage: efi-backup export FILE.tar.gz"
+
+    # Stream HEAD's EFI straight into gzip so we don't materialise a copy on
+    # disk; works even when tar/gz filters are git's default.
+    info "exporting HEAD EFI to $file"
+    in_repo archive --format=tar HEAD EFI | gzip > "$file"
+    ok "exported $(in_repo rev-parse --short HEAD) -> $file"
+}
+
+cmd_import() {
+    require_repo
+    local file="${1:-}"
+    [[ -n "$file" ]] || die "usage: efi-backup import FILE.tar.gz"
+    [[ -f "$file" ]] || die "file not found: $file"
+
+    local tmp stamp
+    tmp="$(make_temp_dir)"
+    info "extracting $file"
+    tar -xzf "$file" -C "$tmp"
+
+    [[ -d "$tmp/EFI" ]] || die "archive does not contain an EFI/ directory."
+
+    if ! verify_efi "$tmp/EFI"; then
+        die "imported EFI failed validation."
+    fi
+
+    # Sync the imported tree into the repo. We deliberately avoid `rm -rf` +
+    # `mv`: a plain `mv` fails across filesystems (e.g. repo on an external
+    # volume) and would leave the repo without an EFI/ — data loss. rsync is
+    # cross-device safe and `--delete` reconciles removed files atomically.
+    mkdir -p "$REPO/EFI"
+    rsync_efi "$tmp/EFI/" "$REPO/EFI/"
+
+    in_repo add -A
+    stamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    if in_repo diff --cached --quiet; then
+        ok "No changes."
+    else
+        in_repo commit -q -m "EFI import $stamp from $file"
+        ok "imported and committed $file"
+    fi
+}
+
+###############################################################################
+# Usage
+###############################################################################
+
+usage() {
+    cat <<'EOF'
+efi-backup — manage OpenCore Hackintosh EFI backups with Git.
+
+Usage:
+  efi-backup <command> [args...]
+
+Commands:
+  init                 Initialize the backup repository.
+  backup               Sync mounted EFI into the repo and commit if changed.
+  restore              Backup, pick a commit, verify, and restore to EFI.
+  list                 Pretty git history of EFI backups.
+  tag NAME             Create an annotated tag at HEAD.
+  tags                 List tags, newest first.
+  status               Show repo + EFI overview.
+  verify               Validate the currently mounted EFI.
+  diff                 Show differences between mounted EFI and the repo.
+  doctor               Run diagnostics.
+  gc                   Run `git gc` on the repository.
+  prune                Remove stale efi-backup temp directories.
+  export FILE.tar.gz   Export HEAD EFI as a tar.gz archive.
+  import FILE.tar.gz   Import a tar.gz EFI archive and commit it.
+
+Options:
+  -h, --help           Show this help and exit.
+
+Environment:
+  EFI_BACKUP_REPO      Override the repository location (default: ~/Hackintosh).
+  NO_COLOR             Disable colored output.
+
+The EFI partition is never the git working tree. Backups sync EFI -> repo via
+rsync; restores extract a commit with `git archive` into a temp dir, verify it,
+then rsync onto the mounted EFI with --delete. A failed post-restore check
+triggers an automatic rollback to the pre-restore state.
+EOF
+}
+
+###############################################################################
+# Dispatch
+###############################################################################
+
+main() {
+    local cmd="${1:-}"
+    shift || true
+
+    case "$cmd" in
+        init)               cmd_init "$@" ;;
+        backup)             cmd_backup "$@" ;;
+        restore)            cmd_restore "$@" ;;
+        list|log)           cmd_list "$@" ;;
+        tag)                cmd_tag "$@" ;;
+        tags)               cmd_tags "$@" ;;
+        status)             cmd_status "$@" ;;
+        verify)             cmd_verify "$@" ;;
+        diff)               cmd_diff "$@" ;;
+        doctor)             cmd_doctor "$@" ;;
+        gc)                 cmd_gc "$@" ;;
+        prune)              cmd_prune "$@" ;;
+        export)             cmd_export "$@" ;;
+        import)             cmd_import "$@" ;;
+        -h|--help|help|"")  usage ;;
+        *)
+            err "unknown command: $cmd"
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Dependency preflight is intentionally skipped for `help` and `doctor`:
+# `--help` must always work, and `doctor` exists to *report* missing
+# dependencies, so it cannot be gated on them. Every other command needs the
+# full toolchain before touching the EFI or the repository.
+case "${1:-}" in
+    -h|--help|help|"") : ;;
+    doctor)            : ;;
+    *)                 check_dependencies ;;
+esac
+
+main "$@"
