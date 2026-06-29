@@ -4,7 +4,10 @@ has_cmd() {
   command -v "$1" >&/dev/null
 }
 
-export EDITOR='zed --wait'
+source_exists() {
+  [ -f "$1" ] && source "$1"
+}
+
 export DOT_DIR='$HOME/.mac-config'
 export PATH="$DOT_DIR/scripts:$HOME/.cargo/bin:$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -37,16 +40,19 @@ setopt EXTENDED_GLOB
 setopt INTERACTIVE_COMMENTS
 setopt APPEND_HISTORY
 
+# completion (carapace)
 autoload -Uz compinit && compinit
 zstyle ':completion:*' menu select
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
-zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*' format '%F{yellow}-- %d --%f'
 zstyle ':completion:*' group-name ''
-zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
-zstyle ':completion:*:warnings' format '%F{red}-- no matches --%f'
 zstyle ':completion:*' squeeze-slashes true
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/compcache"
+
+if has_cmd carapace; then
+  export CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'
+  source <(carapace _carapace zsh)
+fi
 
 alias ..='cd ..'
 alias ...='cd ../..'
@@ -110,7 +116,21 @@ if has_cmd uvx; then
   }
 fi
 
-if has_cmd carapace; then
-  export CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'
-  source <(carapace _carapace)
+source_exists /usr/local/opt/zsh-fast-syntax-highlighting/share/zsh-fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
+source_exists /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+if [[ -z $EDITOR ]]; then
+  if has_cmd code; then
+    export EDITOR=code --wait
+  elif has_cmd nvim; then
+    export EDITOR=nvim
+  fi
+fi
+
+if [[ -z $VISUAL ]]; then
+  if has_cmd code; then
+    export VISUAL=code --wait
+  elif has_cmd nvim; then
+    export VISUAL=nvim
+  fi
 fi

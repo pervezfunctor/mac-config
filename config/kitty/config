@@ -4,6 +4,10 @@ italic_font      auto
 bold_italic_font auto
 font_size 15.0
 
-allow_os_theme true
-background_opacity 0.85
-background_blur yes
+# background_opacity 0.95
+# background_blur 12
+
+# BEGIN_KITTY_THEME
+# Ayu Mirage
+include Ayu Mirage.conf
+# END_KITTY_THEME

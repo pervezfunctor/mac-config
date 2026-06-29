@@ -8,12 +8,6 @@ First install xcode command line tools. Required for homebrew.
 xcode-select --install
 ```
 
-Then install Rosetta. Needed for some older apps.
-
-```bash
-/usr/sbin/softwareupdate --install-rosetta --agree-to-license
-```
-
 Install homebrew, the most popular package manager on macos(similar to apt on ubuntu)
 
 ```bash
@@ -39,18 +33,18 @@ sudo chsh -s $(command -v fish) "$USER"
 Add starship to your shell config and homebrew to your PATH.
 
 ```fish
-mkdir -p ~/.config/fish
-touch ~/.config/fish/config.fish
-echo 'starship init fish | source' >> ~/.config/fish/config.fish
-echo 'set -gx PATH "/opt/homebrew/bin:$PATH"' >> ~/.config/fish/config.fish
+mkdir -p ~/.config/fish/conf.d
+touch ~/.config/fish/conf.d/custom.fish
+echo 'starship init fish | source' >> ~/.config/fish/conf.d/custom.fish
+echo 'set -gx PATH "/opt/homebrew/bin:$PATH"' >> ~/.config/fish/conf.d/custom.fish
 ```
 
 ## UI Tools
 
-Install Visual Studio Code and Ghostty
+Install Zed editor and Ghostty terminal
 
 ```bash
-brew install ghostty visual-studio-code font-jetbrains-mono-nerd-font 
+brew install zed ghostty font-jetbrains-mono-nerd-font 
 ```
 
-Use `Catppuccin Mocha` theme and `Jetbrains Mono Nerd Font` font in your terminal and vscode editor. Use `cmd+,` to open settings(both terminal and vscode).
+Use your favorite theme like `Catppuccin Mocha` and your favorite font like `Jetbrains Mono Nerd Font` in Ghostty and Zed editor. Use `cmd+,` to open settings.

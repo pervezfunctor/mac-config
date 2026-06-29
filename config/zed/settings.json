@@ -45,12 +45,12 @@
   "buffer_font_size": 15,
   "theme": {
     "mode": "system",
-    "light": "Catppuccin Latte",
-    "dark": "Catppuccin Mocha",
+    "light": "GitHub Light",
+    "dark": "Ayu Mirage",
   },
   "icon_theme": {
     "mode": "system",
-    "light": "Catppuccin Latte",
-    "dark": "Catppuccin Mocha",
+    "light": "Zed (Default)",
+    "dark": "Zed (Default)",
   },
 }

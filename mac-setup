@@ -1,0 +1,124 @@
+#!/bin/sh
+
+set -eu
+
+has_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+readonly REPO_NAME="mac-config"
+readonly DOT_DIR="$HOME/.${REPO_NAME}"
+
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+log() { printf "${GREEN}✔${RESET} %s\n\n" "$*"; }
+warn() { printf "${YELLOW}${BOLD}⚠${RESET} %s\n\n" "$*" >&2; }
+die() {
+  printf "${RED}${BOLD}✖${RESET} %s\n\n" "$*" >&2
+  exit 1
+}
+
+brew_install() {
+  if has_cmd brew; then
+    log "Updating brew..."
+    brew update
+    brew upgrade -y
+    return
+  fi
+
+  log "Installing homebrew..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  log "Homebrew installed."
+}
+
+zsh_config() {
+  touch ~/.zshrc
+  if ! grep -q "source ${DOT_DIR}/zsh/zshrc" ~/.zshrc; then
+    log "Sourcing ${DOT_DIR}/zsh/zshrc in ${HOME}/.zshrc"
+    echo "source ${DOT_DIR}/zsh/zshrc" >>~/.zshrc
+  fi
+}
+
+sync_config() {
+  has_cmd rsync || die "rsync not found."
+
+  readonly REL_PATH="${1:?Usage: sync_config <rel_path> <dest_dir>}"
+  readonly DEST="${2:?Usage: sync_config <rel_path> <dest_dir>}"
+  : "${DOT_DIR:?DOT_DIR is not set}"
+  readonly SRC="$DOT_DIR/$REL_PATH"
+
+  [ -d "$SRC" ] || die "Source not found: $SRC"
+
+  readonly backup_base="${XDG_DATA_HOME:-$HOME}/.mac-config-backup"
+  readonly stamp
+  stamp="$backup_base/$(date +%Y-%m-%d_%H-%M-%S)"
+
+  log "Syncing $REL_PATH/ -> $DEST/"
+  rsync -avh -b --backup-dir="$stamp/$REL_PATH" "$SRC/" "$DEST/"
+  log "Backup: $stamp/$REL_PATH"
+}
+
+config_setup() {
+  has_cmd rsync || brew install -y -q rsync
+  sync_config config "$HOME/.config"
+  zsh_config
+}
+
+vscode_extensions_install() {
+  log "Installing VSCode extensions..."
+  for ext in \
+    "Catppuccin.catppuccin-vsc" \
+    "charliermarsh.ruff" \
+    "llvm-vs-code-extensions.vscode-clangd" \
+    "marimo-team.vscode-marimo" \
+    "ms-python.debugpy" \
+    "ms-python.python" \
+    "ms-python.vscode-python-envs" \
+    "ms-toolsai.jupyter" \
+    "ms-vscode.cmake-tools" \
+    "ms-vscode.cpptools" \
+    "rust-lang.rust-analyzer"; do
+    code --install-extension "$ext"
+  done
+  log "VSCode extensions installed."
+}
+
+main() {
+  export PATH="$HOME/.local/bin:${DOT_DIR}/scripts:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+  [ "$(uname)" = "Darwin" ] || die "Not a Mac. Quitting."
+
+  case "${1:-}" in
+  sync)
+    shift
+    sync_config "$@"
+    return
+    ;;
+  esac
+
+  echo ""
+  log "Starting mac setup..."
+  echo ""
+
+  brew_install
+
+  config_setup
+
+  brew tap BarutSRB/tap
+  brew trust --cask barutsrb/tap/omniwm
+  brew bundle --file="$DOT_DIR/Brewfile"
+
+  tldr --update || true
+  vscode_extensions_install
+  vp env install latest
+
+  echo ""
+  log "mac setup complete!"
+  echo ""
+}
+
+main "$@"
