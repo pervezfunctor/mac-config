@@ -11,6 +11,7 @@ return {
   -- example of importing a plugin
   -- available plugins can be found at https://github.com/AstroNvim/astrocommunity
   { import = "astrocommunity.colorscheme.catppuccin" },
+  { import = "astrocommunity.color.transparent-nvim" },
   { import = "astrocommunity.pack.lua" },
   { import = "astrocommunity.pack.rust" },
   { import = "astrocommunity.pack.cpp" },
