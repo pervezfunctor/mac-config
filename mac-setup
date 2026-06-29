@@ -37,9 +37,10 @@ brew_install() {
 
 zsh_config() {
   touch ~/.zshrc
-  if ! grep -q "source ${DOT_DIR}/zsh/zshrc" ~/.zshrc; then
-    log "Sourcing ${DOT_DIR}/zsh/zshrc in ${HOME}/.zshrc"
-    echo "source ${DOT_DIR}/zsh/zshrc" >>~/.zshrc
+  readonly snippet="for file in ~/.config/zsh/conf.d/*.zsh(N); do source \"\$file\"; done"
+  if ! grep -qF "$snippet" ~/.zshrc; then
+    log "Sourcing ~/.config/zsh/conf.d/*.zsh in ${HOME}/.zshrc"
+    echo "$snippet" >>~/.zshrc
   fi
 }
 
@@ -54,18 +55,19 @@ sync_config() {
   [ -d "$SRC" ] || die "Source not found: $SRC"
 
   readonly backup_base="${XDG_DATA_HOME:-$HOME}/.mac-config-backup"
-  readonly stamp
-  stamp="$backup_base/$(date +%Y-%m-%d_%H-%M-%S)"
+  BACKUP_TIMESTAMP="$backup_base/$(date +%Y-%m-%d_%H-%M-%S)"
 
   log "Syncing $REL_PATH/ -> $DEST/"
-  rsync -avh -b --backup-dir="$stamp/$REL_PATH" "$SRC/" "$DEST/"
-  log "Backup: $stamp/$REL_PATH"
+  rsync -ah -b --backup-dir="$BACKUP_TIMESTAMP/$REL_PATH" "$SRC/" "$DEST/"
+  log "Backup: $BACKUP_TIMESTAMP/$REL_PATH"
 }
 
 config_setup() {
   has_cmd rsync || brew install -y -q rsync
   sync_config config "$HOME/.config"
   zsh_config
+  kitten themes "Ayu Mirage"
+  kitten themes "Catppuccin-Mocha"
 }
 
 vscode_extensions_install() {
@@ -93,9 +95,9 @@ main() {
   [ "$(uname)" = "Darwin" ] || die "Not a Mac. Quitting."
 
   case "${1:-}" in
-  sync)
+  config | sync)
     shift
-    sync_config "$@"
+    config_setup
     return
     ;;
   esac

@@ -8,7 +8,7 @@ First install xcode command line tools. Required for homebrew.
 xcode-select --install
 ```
 
-Install homebrew, the most popular package manager on macos(similar to apt on ubuntu)
+Install homebrew, the most popular package manager for macos(similar to apt on ubuntu)
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -17,7 +17,7 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 
 ## Shell (Optional)
 
-Install packages for the shell.
+Install modern shell packages
 
 ```bash
 brew install fish starship fzf eza zoxide bat gh ripgrep tealdeer direnv fd jq bottom htop
@@ -47,4 +47,4 @@ Install Zed editor and Ghostty terminal
 brew install zed ghostty font-jetbrains-mono-nerd-font 
 ```
 
-Use your favorite theme like `Catppuccin Mocha` and your favorite font like `Jetbrains Mono Nerd Font` in Ghostty and Zed editor. Use `cmd+,` to open settings.
+Use your favorite theme like `Catppuccin Mocha` and your favorite font like `Jetbrains Mono Nerd Font` in both Ghostty and Zed editor.

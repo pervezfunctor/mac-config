@@ -8,8 +8,8 @@ source_exists() {
   [ -f "$1" ] && source "$1"
 }
 
-export DOT_DIR='$HOME/.mac-config'
-export PATH="$DOT_DIR/scripts:$HOME/.cargo/bin:$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+export DOT_DIR="$HOME/.mac-config"
+export PATH="$DOT_DIR:$HOME/.cargo/bin:$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
@@ -121,7 +121,7 @@ source_exists /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 if [[ -z $EDITOR ]]; then
   if has_cmd code; then
-    export EDITOR=code --wait
+    export EDITOR="code --wait"
   elif has_cmd nvim; then
     export EDITOR=nvim
   fi
@@ -129,7 +129,7 @@ fi
 
 if [[ -z $VISUAL ]]; then
   if has_cmd code; then
-    export VISUAL=code --wait
+    export VISUAL="code --wait"
   elif has_cmd nvim; then
     export VISUAL=nvim
   fi
