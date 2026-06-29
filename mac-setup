@@ -51,7 +51,8 @@ zsh_config() {
 }
 
 nvim_config() {
-  has_cmd nvim || brew install -y -q nvim
+  has_cmd nvim || brew install -y -q neovim
+
   if [ ! -d ~/.config/nvim ]; then
     log "Cloning Astronvim..."
     git clone --depth 1 https://github.com/AstroNvim/template ~/.config/nvim
@@ -89,30 +90,18 @@ sync_config() {
 
 config_setup() {
   sync_config config "$HOME/.config"
+
   zsh_config
 
-  has_cmd kitten || return 0
-  kitten themes "Ayu Mirage"
-  kitten themes "Catppuccin-Mocha"
-}
+  if has_cmd code && ! code --list-extensions | grep -qi "catppuccin.catppuccin-vsc"; then
+    code --install-extension "catppuccin.catppuccin-vsc"
+  fi
 
-vscode_config() {
-  log "Installing VSCode extensions..."
-  for ext in \
-    "Catppuccin.catppuccin-vsc" \
-    "charliermarsh.ruff" \
-    "llvm-vs-code-extensions.vscode-clangd" \
-    "marimo-team.vscode-marimo" \
-    "ms-python.debugpy" \
-    "ms-python.python" \
-    "ms-python.vscode-python-envs" \
-    "ms-toolsai.jupyter" \
-    "ms-vscode.cmake-tools" \
-    "ms-vscode.cpptools" \
-    "rust-lang.rust-analyzer"; do
-    code --install-extension "$ext"
-  done
-  log "VSCode extensions installed."
+  if has_cmd kitten; then
+    kitten themes "Catppuccin-Mocha"
+  fi
+
+  nvim_config
 }
 
 packages_install() {
@@ -121,9 +110,7 @@ packages_install() {
   brew trust --cask barutsrb/tap/omniwm
   brew bundle --file="$DOT_DIR/Brewfile"
 
-  vscode_config
   tldr --update
-  nvim_config
 }
 
 main() {
@@ -136,23 +123,24 @@ main() {
   echo ""
 
   case "${1:-}" in
-  config | sync)
-    shift
-    config_setup
-    ;;
-  brew)
-    shift
-    brew_install
-    ;;
   packages | install)
     packages_install
+    ;;
+  config | sync)
+    config_setup
     ;;
   '')
     packages_install
     config_setup
     ;;
+  brew)
+    brew_install
+    ;;
+  nvim)
+    nvim_config
+    ;;
   *)
-    echo "Usage: $0 [config|install|brew]"
+    echo "Usage: $0 [config|install|brew|nvim]"
     exit 1
     ;;
   esac
