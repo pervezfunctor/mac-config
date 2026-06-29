@@ -47,4 +47,30 @@ Install Zed editor and Ghostty terminal
 brew install zed ghostty font-jetbrains-mono-nerd-font 
 ```
 
-Use your favorite theme like `Catppuccin Mocha` and your favorite font like `Jetbrains Mono Nerd Font` in both Ghostty and Zed editor.
+In Ghostty, press `cmd+,` to open settings file and configure font and theme.
+
+```
+font-family = "JetBrainsMono Nerd Font Mono"
+font-size = 15
+theme = light:Ayu Light, dark:Catppuccin Mocha
+```
+
+In Zed, press `cmd+option+,` to open settings file and configure font and theme.
+
+```
+{
+  "auto_install_extensions": {
+    "catppuccin": true,
+    "catppuccin-icons": true,
+    "git-firefly": true,
+  },
+  "ui_font_size": 16,
+  "buffer_font_family": "JetBrainsMono Nerd Font Mono",
+  "buffer_font_size": 15,
+  "theme": {
+    "mode": "system",
+    "light": "Ayu Light",
+    "dark": "Catppuccin Mocha",
+  },
+}
+```
