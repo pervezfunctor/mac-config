@@ -6,6 +6,13 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+frm() {
+  if [ -e "$1" ]; then
+    log "Trashing $1..."
+    trash "$1"
+  fi
+}
+
 readonly REPO_NAME="mac-config"
 readonly DOT_DIR="$HOME/.${REPO_NAME}"
 
@@ -32,7 +39,6 @@ brew_install() {
 
   log "Installing homebrew..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  log "Homebrew installed."
 }
 
 zsh_config() {
@@ -44,8 +50,27 @@ zsh_config() {
   fi
 }
 
+nvim_config() {
+  has_cmd nvim || brew install -y -q nvim
+  if [ ! -d ~/.config/nvim ]; then
+    log "Cloning Astronvim..."
+    git clone --depth 1 https://github.com/AstroNvim/template ~/.config/nvim
+    frm ~/.config/nvim/.git
+    frm ~/.local/share/nvim
+    frm ~/.local/state/nvim
+    frm ~/.cache/nvim
+    log "Astronvim installed."
+  else
+    log "$HOME/.config/nvim already exists. Skipping installation."
+  fi
+}
+
 sync_config() {
-  has_cmd rsync || die "rsync not found."
+  has_cmd rsync || {
+    has_cmd brew || die "brew not found."
+    log "Installing rsync..."
+    brew install -y -q rsync
+  }
 
   readonly REL_PATH="${1:?Usage: sync_config <rel_path> <dest_dir>}"
   readonly DEST="${2:?Usage: sync_config <rel_path> <dest_dir>}"
@@ -63,14 +88,15 @@ sync_config() {
 }
 
 config_setup() {
-  has_cmd rsync || brew install -y -q rsync
   sync_config config "$HOME/.config"
   zsh_config
+
+  has_cmd kitten || return 0
   kitten themes "Ayu Mirage"
   kitten themes "Catppuccin-Mocha"
 }
 
-vscode_extensions_install() {
+vscode_config() {
   log "Installing VSCode extensions..."
   for ext in \
     "Catppuccin.catppuccin-vsc" \
@@ -89,34 +115,47 @@ vscode_extensions_install() {
   log "VSCode extensions installed."
 }
 
+packages_install() {
+  brew_install
+  brew tap BarutSRB/tap
+  brew trust --cask barutsrb/tap/omniwm
+  brew bundle --file="$DOT_DIR/Brewfile"
+
+  vscode_config
+  tldr --update
+  nvim_config
+}
+
 main() {
-  export PATH="$HOME/.local/bin:${DOT_DIR}/scripts:/opt/homebrew/bin:/usr/local/bin:$PATH"
+  export PATH="$HOME/.local/bin:${DOT_DIR}:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
   [ "$(uname)" = "Darwin" ] || die "Not a Mac. Quitting."
-
-  case "${1:-}" in
-  config | sync)
-    shift
-    config_setup
-    return
-    ;;
-  esac
 
   echo ""
   log "Starting mac setup..."
   echo ""
 
-  brew_install
-
-  config_setup
-
-  brew tap BarutSRB/tap
-  brew trust --cask barutsrb/tap/omniwm
-  brew bundle --file="$DOT_DIR/Brewfile"
-
-  tldr --update || true
-  vscode_extensions_install
-  vp env install latest
+  case "${1:-}" in
+  config | sync)
+    shift
+    config_setup
+    ;;
+  brew)
+    shift
+    brew_install
+    ;;
+  packages | install)
+    packages_install
+    ;;
+  '')
+    packages_install
+    config_setup
+    ;;
+  *)
+    echo "Usage: $0 [config|install|brew]"
+    exit 1
+    ;;
+  esac
 
   echo ""
   log "mac setup complete!"
