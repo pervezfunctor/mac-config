@@ -2,13 +2,13 @@
 
 ## Package Manager(homebrew)
 
-First install xcode command line tools. Required for homebrew.
+First install xcode command line tools.
 
 ```bash
 xcode-select --install
 ```
 
-Install homebrew, the most popular package manager for macos(similar to apt on ubuntu)
+Install homebrew, popular package manager for macos.
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -34,9 +34,8 @@ Add starship to your shell config and homebrew to your PATH.
 
 ```fish
 mkdir -p ~/.config/fish/conf.d
-touch ~/.config/fish/conf.d/custom.fish
-echo 'starship init fish | source' >> ~/.config/fish/conf.d/custom.fish
-echo 'set -gx PATH "/opt/homebrew/bin:$PATH"' >> ~/.config/fish/conf.d/custom.fish
+echo "starship init fish | source" >> ~/.config/fish/conf.d/custom.fish
+echo "fish_add_path /opt/homebrew/bin" >> ~/.config/fish/conf.d/custom.fish
 ```
 
 ## UI Tools
