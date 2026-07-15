@@ -38,6 +38,8 @@ brew "zsh-fast-syntax-highlighting"
 brew "zstd"
 
 cask "antigravity"
+cask "barutsrb/tap/omniwm" if Hardware::CPU.arm?
+cask "kitty"
 cask "antigravity-cli"
 cask "antigravity-ide"
 cask "claude"

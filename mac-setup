@@ -33,12 +33,17 @@ brew_install() {
   if has_cmd brew; then
     log "Updating brew..."
     brew update
-    brew upgrade -y
     return
   fi
 
   log "Installing homebrew..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+}
+
+brew_upgrade() {
+  has_cmd brew || die "brew not found."
+  log "Upgrading brew packages..."
+  brew upgrade -y
 }
 
 zsh_config() {
@@ -56,7 +61,8 @@ zsh_config() {
 nvim_config() {
   has_cmd nvim || brew install -y -q neovim
 
-  if [ ! -d ~/.config/nvim ]; then
+  if [ ! -e ~/.config/nvim/init.lua ]; then
+    frm ~/.config/nvim
     log "Cloning Astronvim..."
     git clone --depth 1 https://github.com/AstroNvim/template ~/.config/nvim
     frm ~/.config/nvim/.git
@@ -76,18 +82,14 @@ sync_config() {
     brew install -y -q rsync
   }
 
-  readonly REL_PATH="${1:?Usage: sync_config <rel_path> <dest_dir>}"
-  readonly DEST="${2:?Usage: sync_config <rel_path> <dest_dir>}"
+  REL_PATH="${1:?Usage: sync_config <rel_path> <dest_dir>}"
+  DEST="${2:?Usage: sync_config <rel_path> <dest_dir>}"
   : "${DOT_DIR:?DOT_DIR is not set}"
-  readonly SRC="$DOT_DIR/$REL_PATH"
+  SRC="$DOT_DIR/$REL_PATH"
 
   [ -d "$SRC" ] || die "Source not found: $SRC"
 
-  if [ -n "${XDG_DATA_HOME:-}" ]; then
-    readonly backup_base="$XDG_DATA_HOME/mac-config-backup"
-  else
-    readonly backup_base="$HOME/.mac-config-backup"
-  fi
+  backup_base="$HOME/.mac-config-backup"
   BACKUP_TIMESTAMP="$backup_base/$(date +%Y-%m-%d_%H-%M-%S)"
 
   log "Syncing $REL_PATH/ -> $DEST/"
@@ -105,10 +107,8 @@ config_setup() {
   fi
 
   if has_cmd kitten; then
-    kitten themes "Catppuccin-Mocha"
+    kitten themes --reload-in=none "Catppuccin-Mocha"
   fi
-
-  nvim_config
 }
 
 packages_install() {
@@ -138,16 +138,20 @@ main() {
     ;;
   '')
     packages_install
+    nvim_config
     config_setup
     ;;
   brew)
     brew_install
     ;;
+  upgrade)
+    brew_upgrade
+    ;;
   nvim)
     nvim_config
     ;;
   *)
-    echo "Usage: $0 [config|install|brew|nvim]"
+    echo "Usage: $0 [config|sync|install|packages|brew|upgrade|nvim]"
     exit 1
     ;;
   esac

@@ -25,13 +25,13 @@ fi
 HISTFILE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/history"
 mkdir -p "$(dirname "$HISTFILE")"
 HISTSIZE=50000
+SAVEHIST=50000
 
 setopt HIST_IGNORE_DUPS
 setopt HIST_IGNORE_SPACE
 setopt HIST_FIND_NO_DUPS
 setopt HIST_REDUCE_BLANKS
 setopt SHARE_HISTORY
-setopt INC_APPEND_HISTORY
 
 setopt AUTO_CD
 setopt GLOB_DOTS
@@ -116,8 +116,12 @@ if has_cmd uvx; then
   }
 fi
 
-source_exists /usr/local/opt/zsh-fast-syntax-highlighting/share/zsh-fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
-source_exists /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+if has_cmd brew; then
+  brew_prefix="$(brew --prefix)"
+  source_exists "$brew_prefix/opt/zsh-fast-syntax-highlighting/share/zsh-fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh"
+  source_exists "$brew_prefix/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+  unset brew_prefix
+fi
 
 if [[ -z $EDITOR ]]; then
   if has_cmd code; then
