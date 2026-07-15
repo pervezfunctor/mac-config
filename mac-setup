@@ -42,6 +42,9 @@ brew_install() {
 }
 
 zsh_config() {
+  if [ -L ~/.zshrc ] && [ ! -e ~/.zshrc ]; then
+    rm ~/.zshrc
+  fi
   touch ~/.zshrc
   readonly snippet="for file in ~/.config/zsh/conf.d/*.zsh(N); do source \"\$file\"; done"
   if ! grep -qF "$snippet" ~/.zshrc; then
@@ -80,7 +83,11 @@ sync_config() {
 
   [ -d "$SRC" ] || die "Source not found: $SRC"
 
-  readonly backup_base="${XDG_DATA_HOME:-$HOME}/.mac-config-backup"
+  if [ -n "${XDG_DATA_HOME:-}" ]; then
+    readonly backup_base="$XDG_DATA_HOME/mac-config-backup"
+  else
+    readonly backup_base="$HOME/.mac-config-backup"
+  fi
   BACKUP_TIMESTAMP="$backup_base/$(date +%Y-%m-%d_%H-%M-%S)"
 
   log "Syncing $REL_PATH/ -> $DEST/"
