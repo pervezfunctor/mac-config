@@ -38,7 +38,6 @@ setopt GLOB_DOTS
 setopt NO_BEEP
 setopt EXTENDED_GLOB
 setopt INTERACTIVE_COMMENTS
-setopt APPEND_HISTORY
 
 # completion (carapace)
 autoload -Uz compinit && compinit
