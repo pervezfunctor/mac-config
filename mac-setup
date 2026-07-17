@@ -29,21 +29,21 @@ die() {
   exit 1
 }
 
+brew_upgrade() {
+  has_cmd brew || die "brew not found."
+  log "Upgrading brew packages..."
+  brew upgrade -y
+}
+
 brew_install() {
   if has_cmd brew; then
     log "Updating brew..."
-    brew update
+    brew_upgrade
     return
   fi
 
   log "Installing homebrew..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-}
-
-brew_upgrade() {
-  has_cmd brew || die "brew not found."
-  log "Upgrading brew packages..."
-  brew upgrade -y
 }
 
 zsh_config() {
@@ -109,6 +109,11 @@ config_setup() {
   if has_cmd kitten; then
     kitten themes --reload-in=none "Catppuccin-Mocha"
   fi
+
+  if [ -e "$HOME/Library/Application Support/Code/User/settings.json" ]; then
+    log "Copying vscode settings.json..."
+    sync_config vscode "$HOME/Library/Application Support/Code/User"
+  fi
 }
 
 packages_install() {
@@ -128,6 +133,7 @@ main() {
   echo ""
   log "Starting mac setup..."
   echo ""
+  sleep 1
 
   case "${1:-}" in
   packages | install)
@@ -144,14 +150,11 @@ main() {
   brew)
     brew_install
     ;;
-  upgrade)
-    brew_upgrade
-    ;;
   nvim)
     nvim_config
     ;;
   *)
-    echo "Usage: $0 [config|sync|install|packages|brew|upgrade|nvim]"
+    echo "Usage: $0 [config|install|brew|nvim]"
     exit 1
     ;;
   esac
