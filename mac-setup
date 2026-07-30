@@ -29,6 +29,19 @@ die() {
   exit 1
 }
 
+xcode_cli_tools() {
+  if xcode-select -p >/dev/null 2>&1; then
+    return
+  fi
+
+  log "Requesting Xcode Command Line Tools installation..."
+  if ! xcode-select --install; then
+    warn "The installer may already be open or installation may be in progress."
+  fi
+  warn "Complete the Xcode Command Line Tools installation, then run mac-setup again."
+  exit 0
+}
+
 brew_upgrade() {
   has_cmd brew || die "brew not found."
   log "Upgrading brew packages..."
@@ -38,7 +51,7 @@ brew_upgrade() {
 brew_install() {
   if has_cmd brew; then
     log "Updating brew..."
-    brew_upgrade
+    brew update
     return
   fi
 
@@ -75,30 +88,105 @@ nvim_config() {
   fi
 }
 
-sync_config() {
-  has_cmd rsync || {
-    has_cmd brew || die "brew not found."
-    log "Installing rsync..."
-    brew install -y -q rsync
-  }
+safe_ln() {
+  if [ "$#" -ne 2 ]; then
+    warn "Usage: safe_ln <source_file> <destination_file>"
+    return 1
+  fi
+  source_file=$1
+  destination_file=$2
 
-  REL_PATH="${1:?Usage: sync_config <rel_path> <dest_dir>}"
-  DEST="${2:?Usage: sync_config <rel_path> <dest_dir>}"
+  : "${BACKUP_RUN_ID:=$(date +%Y-%m-%d_%H-%M-%S)-$$}"
+  case "$destination_file" in
+  "$HOME"/*) backup_relative_path=${destination_file#"$HOME/"} ;;
+  *) backup_relative_path=${destination_file#/} ;;
+  esac
+  backup_file="$HOME/.mac-config-backup/$BACKUP_RUN_ID/$backup_relative_path"
+
+  if [ ! -f "$source_file" ] || [ -L "$source_file" ]; then
+    warn "Source is not a regular file: $source_file"
+    return 1
+  fi
+
+  if [ -L "$destination_file" ]; then
+    if [ -e "$destination_file" ] && [ "$source_file" -ef "$destination_file" ]; then
+      return
+    fi
+    warn "Refusing to replace symlink: $destination_file"
+    return 1
+  fi
+
+  backed_up=false
+  if [ -e "$destination_file" ]; then
+    if [ ! -f "$destination_file" ]; then
+      warn "Destination is not a regular file: $destination_file"
+      return 1
+    fi
+    if [ -e "$backup_file" ] || [ -L "$backup_file" ]; then
+      warn "Backup already exists: $backup_file"
+      return 1
+    fi
+    if ! mkdir -p "$(dirname "$backup_file")"; then
+      warn "Failed to create backup directory for $destination_file"
+      return 1
+    fi
+    if ! mv "$destination_file" "$backup_file"; then
+      warn "Failed to back up $destination_file"
+      return 1
+    fi
+    backed_up=true
+    log "Backed up $destination_file -> $backup_file"
+  fi
+
+  if ! mkdir -p "$(dirname "$destination_file")"; then
+    if [ "$backed_up" = true ] && ! mv "$backup_file" "$destination_file"; then
+      warn "Failed to restore $destination_file from $backup_file"
+    fi
+    warn "Failed to create destination directory for $destination_file"
+    return 1
+  fi
+  if ! ln -s "$source_file" "$destination_file"; then
+    if [ "$backed_up" = true ] && ! mv "$backup_file" "$destination_file"; then
+      warn "Failed to restore $destination_file from $backup_file"
+    fi
+    warn "Failed to link $source_file -> $destination_file"
+    return 1
+  fi
+}
+
+link_config() {
+  if [ "$#" -ne 2 ]; then
+    warn "Usage: link_config <rel_path> <dest_dir>"
+    return 1
+  fi
+  REL_PATH=$1
+  DEST=$2
   : "${DOT_DIR:?DOT_DIR is not set}"
   SRC="$DOT_DIR/$REL_PATH"
 
-  [ -d "$SRC" ] || die "Source not found: $SRC"
+  if [ ! -d "$SRC" ]; then
+    warn "Source directory not found: $SRC"
+    return 1
+  fi
 
-  backup_base="$HOME/.mac-config-backup"
-  BACKUP_TIMESTAMP="$backup_base/$(date +%Y-%m-%d_%H-%M-%S)"
-
-  log "Syncing $REL_PATH/ -> $DEST/"
-  rsync -ah -b --backup-dir="$BACKUP_TIMESTAMP/$REL_PATH" "$SRC/" "$DEST/"
-  log "Backup: $BACKUP_TIMESTAMP/$REL_PATH"
+  log "Linking $REL_PATH/ -> $DEST/"
+  find "$SRC" -type f | while IFS= read -r source_file; do
+    relative_path=${source_file#"$SRC/"}
+    if ! safe_ln \
+      "$source_file" \
+      "$DEST/$relative_path"; then
+      continue
+    fi
+  done
 }
 
 config_setup() {
-  sync_config config "$HOME/.config"
+  if ! link_config config "$HOME/.config"; then
+    :
+  fi
+  if ! link_config vscode "$HOME/Library/Application Support/Code/User"; then
+    :
+  fi
 
   zsh_config
 
@@ -110,10 +198,6 @@ config_setup() {
     kitten themes --reload-in=none "Ayu Mirage"
   fi
 
-  if [ -e "$HOME/Library/Application Support/Code/User/settings.json" ]; then
-    log "Copying vscode settings.json..."
-    sync_config vscode "$HOME/Library/Application Support/Code/User"
-  fi
 }
 
 packages_install() {
@@ -129,6 +213,7 @@ main() {
   export PATH="$HOME/.local/bin:${DOT_DIR}:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
   [ "$(uname)" = "Darwin" ] || die "Not a Mac. Quitting."
+  xcode_cli_tools
 
   echo ""
   log "Starting mac setup..."
@@ -150,11 +235,14 @@ main() {
   brew)
     brew_install
     ;;
+  upgrade)
+    brew_upgrade
+    ;;
   nvim)
     nvim_config
     ;;
   *)
-    echo "Usage: $0 [config|install|brew|nvim]"
+    echo "Usage: $0 [config|install|packages|brew|upgrade|nvim]"
     exit 1
     ;;
   esac

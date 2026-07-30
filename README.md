@@ -25,17 +25,11 @@ DO NOT remove `~/.mac-config/config/zsh`. This script won't replace, only add a 
 sh ~/.mac-config/mac-setup
 ```
 
-This runs the full setup: brew packages, AstroNvim, and config sync. Instead, you can also run individual steps:
+This runs the full setup: brew packages, AstroNvim, and config linking. Instead, you can also run individual steps:
 
 ```bash
-sh ~/.mac-config/mac-setup config   # sync config only; cheap, safe to rerun (backs up replaced files)
+sh ~/.mac-config/mac-setup config   # link config files; safe to rerun (backs up regular files)
 sh ~/.mac-config/mac-setup packages # brew update + install Brewfile packages
 sh ~/.mac-config/mac-setup upgrade  # upgrade installed brew packages
 sh ~/.mac-config/mac-setup nvim     # install AstroNvim
-```
-
-Restart your terminal. If all looks good you can delete the cloned repository (keep it if you plan to rerun `mac-setup config` later).
-
-```sh
-trash ~/.mac-config
 ```
