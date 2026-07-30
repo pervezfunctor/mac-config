@@ -2,7 +2,7 @@
 
 ## Package Manager(homebrew)
 
-First install xcode command line tools.
+The `mac-setup` script requests the Xcode Command Line Tools installer when they are missing and exits. Run it again after installation completes. To install them manually:
 
 ```bash
 xcode-select --install
@@ -49,7 +49,7 @@ brew install zed ghostty font-jetbrains-mono-nerd-font
 In Ghostty, press `cmd+,` to open settings file and configure font and theme.
 
 ```
-font-family = "JetBrainsMono Nerd Font Mono"
+font-family = "JetBrainsMono Nerd Font"
 font-size = 15
 theme = Ayu Mirage
 ```
@@ -62,8 +62,12 @@ In Zed, press `cmd+option+,` to open settings file and configure font and theme.
     "git-firefly": true,
   },
   "ui_font_size": 16,
-  "buffer_font_family": "JetBrainsMono Nerd Font Mono",
+  "buffer_font_family": "JetBrainsMono Nerd Font",
   "buffer_font_size": 15,
+  "terminal": {
+    "font_family": "JetBrainsMono Nerd Font",
+    "font_size": 15,
+  },
   "theme": {
     "mode": "dark",
     "light": "Ayu Mirage",
