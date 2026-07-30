@@ -35,7 +35,9 @@ brew "zoxide"
 brew "zsh-autosuggestions"
 brew "zsh-fast-syntax-highlighting"
 brew "zstd"
+brew "herdr"
 
+cask "agavra/tap/tuicr"
 cask "barutsrb/tap/omniwm" if Hardware::CPU.arm?
 cask "kitty"
 cask "claude"
