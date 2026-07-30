@@ -49,7 +49,7 @@ brew install zed ghostty font-jetbrains-mono-nerd-font
 In Ghostty, press `cmd+,` to open settings file and configure font and theme.
 
 ```
-font-family = "JetBrainsMono Nerd Font"
+font-family = "JetBrainsMono Nerd Font Mono"
 font-size = 15
 theme = Ayu Mirage
 ```

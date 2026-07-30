@@ -108,8 +108,8 @@ assert_link "$HOME_DIR/Library/Application Support/Code/User/settings.json"
 backup_file=$(find "$HOME_DIR/.mac-config-backup" -type f -path '*/.config/ghostty/config' | head -n 1)
 [ -n "$backup_file" ] || fail 'existing regular file was not backed up'
 assert_contains "$backup_file" 'original ghostty config'
-assert_contains "$HOME_DIR/.config/ghostty/config" 'font-family = JetBrainsMono Nerd Font'
-assert_contains "$HOME_DIR/.config/kitty/kitty.conf" 'font_family      family="JetBrainsMono Nerd Font"'
+assert_contains "$HOME_DIR/.config/ghostty/config" 'font-family = JetBrainsMono Nerd Font Mono'
+assert_contains "$HOME_DIR/.config/kitty/kitty.conf" 'font_family      family="JetBrainsMono Nerd Font Mono"'
 assert_contains "$HOME_DIR/.config/zed/settings.json" '"buffer_font_family": "JetBrainsMono Nerd Font"'
 assert_contains "$HOME_DIR/.config/zed/settings.json" '"font_family": "JetBrainsMono Nerd Font"'
 assert_contains "$HOME_DIR/.config/herdr/config.toml" 'name = "terminal"'
