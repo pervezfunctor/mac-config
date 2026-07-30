@@ -21,5 +21,7 @@
   "python.analysis.typeCheckingMode": "strict",
   "update.mode": "manual",
   "window.titleBarStyle": "custom",
+  "workbench.colorTheme": "Ayu Mirage",
+  "workbench.iconTheme": "ayu",
   "workbench.startupEditor": "none"
 }

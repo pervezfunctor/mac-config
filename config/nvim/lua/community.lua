@@ -10,7 +10,16 @@ return {
   "AstroNvim/astrocommunity",
   -- example of importing a plugin
   -- available plugins can be found at https://github.com/AstroNvim/astrocommunity
-  { import = "astrocommunity.colorscheme.catppuccin" },
+  {
+    "Shatur/neovim-ayu",
+    name = "ayu",
+    priority = 1000,
+    opts = { mirage = true },
+  },
+  {
+    "AstroNvim/astroui",
+    opts = { colorscheme = "ayu" },
+  },
   { import = "astrocommunity.color.transparent-nvim" },
   { import = "astrocommunity.pack.lua" },
   -- { import = "astrocommunity.pack.rust" },

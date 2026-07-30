@@ -53,7 +53,7 @@ make_stub trash \
 # shellcheck disable=SC2016
 make_stub code \
   'printf "code %s\n" "$*" >>"$MAC_CONFIG_TEST_LOG"' \
-  'if [ "${1:-}" = "--list-extensions" ]; then printf "%s\n" catppuccin.catppuccin-vsc; fi'
+  'if [ "${1:-}" = "--list-extensions" ]; then printf "%s\n" teabyii.ayu; fi'
 # shellcheck disable=SC2016
 make_stub kitten 'printf "kitten %s\n" "$*" >>"$MAC_CONFIG_TEST_LOG"'
 # shellcheck disable=SC2016
@@ -83,7 +83,9 @@ sh "$DOT_DIR/mac-setup" config >/dev/null
 assert_file "$HOME_DIR/.config/nvim/init.lua"
 cmp "$DOT_DIR/config/nvim/lua/community.lua" "$HOME_DIR/.config/nvim/lua/community.lua" >/dev/null ||
   fail 'config sync did not overlay the repo community.lua over the template copy'
-assert_contains "$COMMAND_LOG" 'kitten themes --reload-in=none Catppuccin-Mocha'
+assert_contains "$HOME_DIR/.config/herdr/config.toml" 'name = "terminal"'
+assert_contains "$HOME_DIR/.config/tuicr/config.toml" 'theme = "ayu-mirage"'
+assert_contains "$COMMAND_LOG" 'kitten themes --reload-in=none Ayu Mirage'
 
 sh "$DOT_DIR/mac-setup" config >/dev/null
 [ "$(grep -c 'conf.d' "$HOME_DIR/.zshrc")" = 1 ] ||

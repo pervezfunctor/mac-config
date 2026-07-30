@@ -102,12 +102,12 @@ config_setup() {
 
   zsh_config
 
-  if has_cmd code && ! code --list-extensions | grep -qi "catppuccin.catppuccin-vsc"; then
-    code --install-extension "catppuccin.catppuccin-vsc"
+  if has_cmd code && ! code --list-extensions | grep -qi "teabyii.ayu"; then
+    code --install-extension "teabyii.ayu"
   fi
 
   if has_cmd kitten; then
-    kitten themes --reload-in=none "Catppuccin-Mocha"
+    kitten themes --reload-in=none "Ayu Mirage"
   fi
 
   if [ -e "$HOME/Library/Application Support/Code/User/settings.json" ]; then
