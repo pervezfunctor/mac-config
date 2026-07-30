@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ayu Mirage Theme"
+  short_description: "Apply Ayu Mirage across supported developer tools"
+  default_prompt: "Use $ayu-mirage-theme to apply and verify Ayu Mirage across this configuration repository."
