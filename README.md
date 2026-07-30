@@ -2,10 +2,15 @@
 
 ## Bootstrap
 
-Clone this repository. You might be asked to install xcode command line tools.
+Make sure xcode command line tools are installed.
 
 ```sh
 git -v
+```
+
+Clone this repository. 
+
+```sh
 git clone --depth=1 https://github.com/pervezfunctor/mac-config.git ~/.mac-config
 ```
 
@@ -20,7 +25,7 @@ DO NOT remove `~/.mac-config/config/zsh`. This script won't replace, only add a 
 sh ~/.mac-config/mac-setup
 ```
 
-This runs the full setup: brew packages, AstroNvim, and config sync. You can also run individual steps:
+This runs the full setup: brew packages, AstroNvim, and config sync. Instead, you can also run individual steps:
 
 ```bash
 sh ~/.mac-config/mac-setup config   # sync config only; cheap, safe to rerun (backs up replaced files)
