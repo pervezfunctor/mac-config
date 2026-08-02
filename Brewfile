@@ -39,7 +39,7 @@ brew "zsh-fast-syntax-highlighting"
 brew "zstd"
 brew "herdr"
 
-cask "agavra/tap/tuicr", trusted: true
+brew "agavra/tap/tuicr"
 cask "barutsrb/tap/omniwm", trusted: true if Hardware::CPU.arm?
 cask "claude"
 cask "claude-code"

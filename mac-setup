@@ -207,6 +207,7 @@ packages_install() {
   brew bundle --file="$DOT_DIR/Brewfile"
 
   tldr --update
+  git lfs install
 }
 
 main() {
@@ -229,20 +230,17 @@ main() {
     ;;
   '')
     packages_install
-    nvim_config
+    nvim_config || true
     config_setup
     ;;
   brew)
     brew_install
     ;;
-  upgrade)
-    brew_upgrade
-    ;;
   nvim)
     nvim_config
     ;;
   *)
-    echo "Usage: $0 [config|install|packages|brew|upgrade|nvim]"
+    echo "Usage: $0 [config|install|packages|brew|nvim]"
     exit 1
     ;;
   esac
