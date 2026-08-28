@@ -5,20 +5,17 @@
 -- This guarantees that the specs are processed before any user plugins.
 
 ---@type LazySpec
+local theme = require "theme"
+
 return {
   -- Add the community repository of plugin specifications
   "AstroNvim/astrocommunity",
   -- example of importing a plugin
   -- available plugins can be found at https://github.com/AstroNvim/astrocommunity
-  {
-    "Shatur/neovim-ayu",
-    name = "ayu",
-    priority = 1000,
-    opts = { mirage = true },
-  },
+  theme.plugin,
   {
     "AstroNvim/astroui",
-    opts = { colorscheme = "ayu" },
+    opts = { colorscheme = theme.colorscheme },
   },
   { import = "astrocommunity.color.transparent-nvim" },
   { import = "astrocommunity.pack.lua" },

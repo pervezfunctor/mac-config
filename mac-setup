@@ -187,15 +187,14 @@ config_setup() {
   if ! link_config vscode "$HOME/Library/Application Support/Code/User"; then
     :
   fi
+  if ! link_config cursor "$HOME/Library/Application Support/Cursor/User"; then
+    :
+  fi
 
   zsh_config
 
-  if has_cmd code && ! code --list-extensions | grep -qi "teabyii.ayu"; then
-    code --install-extension "teabyii.ayu"
-  fi
-
-  if has_cmd kitten; then
-    kitten themes --reload-in=none "Ayu Mirage"
+  if [ -x "$DOT_DIR/theme-switcher" ]; then
+    "$DOT_DIR/theme-switcher" --apply-current
   fi
 
 }
@@ -235,6 +234,9 @@ main() {
     ;;
   brew)
     brew_install
+    ;;
+  upgrade)
+    brew_upgrade
     ;;
   nvim)
     nvim_config

@@ -38,11 +38,13 @@ cp -R "$REPO_ROOT" "$DOT_DIR"
 make_stub() {
   stub_name=$1
   shift
+  stub_dir=${STUB_DIR:-$DOT_DIR}
+  mkdir -p "$stub_dir"
   {
     printf '%s\n' '#!/bin/sh' 'set -eu'
     printf '%s\n' "$@"
-  } >"$DOT_DIR/$stub_name"
-  chmod +x "$DOT_DIR/$stub_name"
+  } >"$stub_dir/$stub_name"
+  chmod +x "$stub_dir/$stub_name"
 }
 
 make_stub uname 'printf "%s\n" Darwin'
@@ -67,8 +69,18 @@ make_stub trash \
 make_stub code \
   'printf "code %s\n" "$*" >>"$MAC_CONFIG_TEST_LOG"' \
   'if [ "${1:-}" = "--list-extensions" ]; then printf "%s\n" teabyii.ayu; fi'
+STUB_DIR="$TEST_ROOT/bin"
 # shellcheck disable=SC2016
-make_stub kitten 'printf "kitten %s\n" "$*" >>"$MAC_CONFIG_TEST_LOG"'
+make_stub cursor \
+  'printf "cursor %s\n" "$*" >>"$MAC_CONFIG_TEST_LOG"' \
+  'if [ "${1:-}" = "--list-extensions" ]; then printf "%s\n" teabyii.ayu; fi'
+unset STUB_DIR
+# shellcheck disable=SC2016
+make_stub kitten \
+  'printf "kitten %s\n" "$*" >>"$MAC_CONFIG_TEST_LOG"' \
+  'case " $* " in' \
+  '  *" --dump-theme "*) printf "%s\n" "background #212733" "foreground #d9d7ce" ;;' \
+  'esac'
 # shellcheck disable=SC2016
 make_stub tldr 'printf "tldr %s\n" "$*" >>"$MAC_CONFIG_TEST_LOG"'
 # shellcheck disable=SC2016
@@ -89,6 +101,8 @@ make_stub git \
 export MAC_CONFIG_TEST_LOG="$COMMAND_LOG"
 export HOME="$HOME_DIR"
 export XDG_DATA_HOME="$HOME_DIR/.local/share"
+export PATH="$TEST_ROOT/bin:$PATH"
+export THEME_SWITCHER_NO_RELOAD=1
 
 sh "$DOT_DIR/mac-setup" nvim >/dev/null
 mkdir -p "$HOME_DIR/.config/ghostty"
@@ -101,6 +115,7 @@ assert_link "$HOME_DIR/.config/ghostty/config"
 assert_link "$HOME_DIR/.config/kitty/kitty.conf"
 assert_link "$HOME_DIR/.config/zed/settings.json"
 assert_link "$HOME_DIR/Library/Application Support/Code/User/settings.json"
+assert_link "$HOME_DIR/Library/Application Support/Cursor/User/settings.json"
 [ "$DOT_DIR/vscode/settings.json" -ef "$HOME_DIR/Library/Application Support/Code/User/settings.json" ] ||
   fail 'VS Code settings link does not point into vscode'
 [ "$DOT_DIR/config/nvim/lua/community.lua" -ef "$HOME_DIR/.config/nvim/lua/community.lua" ] ||
@@ -112,9 +127,14 @@ assert_contains "$HOME_DIR/.config/ghostty/config" 'font-family = JetBrainsMono 
 assert_contains "$HOME_DIR/.config/kitty/kitty.conf" 'font_family      family="JetBrainsMono Nerd Font Mono"'
 assert_contains "$HOME_DIR/.config/zed/settings.json" '"buffer_font_family": "JetBrainsMono Nerd Font"'
 assert_contains "$HOME_DIR/.config/zed/settings.json" '"font_family": "JetBrainsMono Nerd Font"'
-assert_contains "$HOME_DIR/.config/herdr/config.toml" 'name = "terminal"'
-assert_contains "$HOME_DIR/.config/tuicr/config.toml" 'theme = "ayu-mirage"'
-assert_contains "$COMMAND_LOG" 'kitten themes --reload-in=none Ayu Mirage'
+current_theme=$(cat "$DOT_DIR/.theme-current")
+expected_herdr=$(jq -r --arg theme "$current_theme" '.[$theme].herdr' "$DOT_DIR/themes.json")
+expected_tuicr=$(jq -r --arg theme "$current_theme" '.[$theme].tuicr' "$DOT_DIR/themes.json")
+expected_kitty=$(jq -r --arg theme "$current_theme" '.[$theme].kitty' "$DOT_DIR/themes.json")
+assert_contains "$HOME_DIR/.config/herdr/config.toml" "name = \"$expected_herdr\""
+assert_contains "$HOME_DIR/.config/tuicr/config.toml" "theme = \"$expected_tuicr\""
+assert_contains "$HOME_DIR/.config/kitty/current-theme.conf" 'background #212733'
+assert_contains "$COMMAND_LOG" "kitten themes --dump-theme $expected_kitty"
 
 sh "$DOT_DIR/mac-setup" config >/dev/null
 [ "$(grep -c 'conf.d' "$HOME_DIR/.zshrc")" = 1 ] ||

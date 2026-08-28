@@ -75,3 +75,15 @@ In Zed, press `cmd+option+,` to open settings file and configure font and theme.
   },
 }
 ```
+
+The repository keeps themes coordinated across Ghostty, Kitty, Zed, VS Code,
+Cursor, AstroNvim, tuicr, and Herdr. After running `mac-setup config`, select a
+supported theme interactively:
+
+```bash
+theme-switcher
+```
+
+Use `theme-switcher --list` to see Ayu Mirage, Gruvbox Dark, One Dark, all four
+Catppuccin flavors, and Tokyo Night Storm. Pass `--theme "Ayu Mirage"` for a
+non-interactive change.
