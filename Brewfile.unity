@@ -1,0 +1,10 @@
+brew "openjdk@21"
+brew "cocoapods"
+brew "node@24"
+brew "dotnet"
+brew "firebase-cli"
+
+cask "unity-hub"
+cask "android-commandlinetools"
+cask "gcloud-cli"
+cask "raycast"
